@@ -78,6 +78,8 @@ img.thumb { width: 56px; height: 56px; aspect-ratio: auto; object-fit: cover; bo
 .gallery button { position: absolute; top: 50%; transform: translateY(-50%); min-height: 0; width: 36px; height: 36px; padding: 0 0 3px; border-radius: 50%; background: rgb(255 253 251 / .85); color: var(--on-accent); border-color: var(--line); font-size: 1.5em; font-weight: 400; box-shadow: 0 2px 8px rgb(74 53 48 / .15); }
 .gallery .prev { left: 8px; }
 .gallery .next { right: 8px; }
+.handle { touch-action: none; cursor: grab; font-size: 1.2em; }
+.dragging { opacity: .6; outline: 2px dashed var(--accent); outline-offset: 2px; }
 .dots { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
 .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .dots span.on { background: var(--accent-ink); }

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib.js'
+import { useSortable } from './sortable.js'
 
 export default function Categories() {
   const [categories, setCategories] = useState([])
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const { dragging, handle } = useSortable(categories, setCategories, 'categories', setError)
 
   const load = () => supabase.from('categories').select().order('sort').then(({ data }) => setCategories(data ?? []))
   useEffect(() => { load() }, [])
@@ -23,13 +25,13 @@ export default function Categories() {
         <button>Agregar</button>
       </form>
       {categories.map((c) => (
-        <div key={c.id} className="row">
+        <div key={c.id} className={`row${dragging === c.id ? ' dragging' : ''}`} data-sort-id={c.id}>
+          <button {...handle(c.id)} />
           <input defaultValue={c.name} aria-label="Nombre" onBlur={(e) => e.target.value !== c.name && run(supabase.from('categories').update({ name: e.target.value }).eq('id', c.id))} />
-          <input type="number" defaultValue={c.sort} aria-label="Orden" className="short" onBlur={(e) => run(supabase.from('categories').update({ sort: Number(e.target.value) }).eq('id', c.id))} />
           <button className="danger" onClick={() => confirm(`¿Borrar "${c.name}"? Sus productos quedan sin categoría.`) && run(supabase.from('categories').delete().eq('id', c.id))}>Borrar</button>
         </div>
       ))}
-      <p className="muted">El número define el orden en la tienda. Los cambios se guardan al salir del campo.</p>
+      <p className="muted">Arrastrá ⠿ para cambiar el orden en la tienda. Los nombres se guardan al salir del campo.</p>
     </section>
   )
 }

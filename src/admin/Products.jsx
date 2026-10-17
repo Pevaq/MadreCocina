@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase, imageUrl, money } from '../lib.js'
+import { useSortable } from './sortable.js'
 
 const EMPTY = { name: '', description: '', price: '', lead_days: 1, category_id: null, images: [], active: true, variants: [] }
 
@@ -7,8 +8,10 @@ export default function Products() {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [editing, setEditing] = useState(null)
+  const [error, setError] = useState('')
+  const { dragging, handle } = useSortable(products, setProducts, 'products', setError)
 
-  const load = () => supabase.from('products').select('*, variants(*)').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => setProducts(data ?? []))
+  const load = () => supabase.from('products').select('*, variants(*)').order('sort').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => setProducts(data ?? []))
   useEffect(() => {
     load()
     supabase.from('categories').select().order('sort').then(({ data }) => setCategories(data ?? []))
@@ -18,14 +21,17 @@ export default function Products() {
 
   return (
     <section>
-      <button onClick={() => setEditing(EMPTY)}>+ Nuevo producto</button>
+      {error && <p className="error">{error}</p>}
+      <button onClick={() => setEditing({ ...EMPTY, sort: products.length })}>+ Nuevo producto</button>
       {products.map((p) => (
-        <article key={p.id} className="card row" onClick={() => setEditing(p)}>
+        <article key={p.id} className={`card row${dragging === p.id ? ' dragging' : ''}`} data-sort-id={p.id} onClick={() => setEditing(p)}>
+          <button {...handle(p.id)} />
           {p.images[0] && <img className="thumb" src={imageUrl(p.images[0])} alt="" />}
           <span>{p.name}{!p.active && <em className="muted"> (oculto)</em>}</span>
           <span>{money(p.price)}</span>
         </article>
       ))}
+      {products.length > 1 && <p className="muted">Arrastrá ⠿ para cambiar el orden en la tienda.</p>}
     </section>
   )
 }

@@ -23,7 +23,8 @@ create table products (
   price numeric(12,2) not null check (price >= 0),
   lead_days int not null default 1 check (lead_days >= 0),
   images text[] not null default '{}' check (cardinality(images) <= 3),
-  active boolean not null default true
+  active boolean not null default true,
+  sort int not null default 0
 );
 
 create table variants (
