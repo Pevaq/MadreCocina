@@ -37,8 +37,9 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 ## Estado y pendientes
 
 - [x] Supabase, función de pedidos y email funcionando (2026-10-17).
-- [x] Web publicada en https://pevaq.github.io/MadreCocina/ (2026-10-17).
-- [ ] Dominio `madrecocina.com.ar`: registrado en NIC y delegado a Cloudflare (2026-10-17), esperando que la zona `.ar` lo publique. Registros en Cloudflare: A `@` → 185.199.108–111.153, CNAME `www` → `pevaq.github.io`, sin proxy. Cuando `nslookup madrecocina.com.ar 1.1.1.1` devuelva esas IPs: `gh api -X PUT repos/Pevaq/MadreCocina/pages -f cname=madrecocina.com.ar`, esperar certificado, luego `-F https_enforced=true`. No antes: github.io redirigiría a un dominio que no resuelve.
+- [x] Web publicada en https://madrecocina.com.ar/ con HTTPS obligatorio (2026-10-17). `www` y `pevaq.github.io/MadreCocina/` redirigen ahí.
+  - Dominio registrado en NIC Argentina, DNS en Cloudflare (plan Free): A `@` → 185.199.108–111.153, CNAME `www` → `pevaq.github.io`, **sin proxy** (nube gris: si se activa el proxy, GitHub no puede renovar el certificado).
+  - El dominio está configurado en Settings → Pages (no hay archivo CNAME: el deploy es por Actions).
 - [ ] Borrar el pedido de prueba #1.
 - [ ] Rediseño de UI (definido 2026-10-17): estilo cálido artesanal (crema, terracota/marrón, títulos serif), mobile-first (clientes llegan desde Instagram/WhatsApp), tienda primero y luego backoffice con el mismo estilo. Esperando assets de marca (logo e identidad) en `brand/`.
 

@@ -2,8 +2,8 @@
 
 Tienda (SPA) en GitHub Pages + Supabase (base de datos, login, fotos) + Resend (email). Todo en planes gratis.
 
-- Tienda: `https://<usuario>.github.io/<repo>/`
-- Backoffice: `https://<usuario>.github.io/<repo>/#/admin`
+- Tienda: `https://madrecocina.com.ar/`
+- Backoffice: `https://madrecocina.com.ar/#/admin`
 
 ## Puesta en marcha (una sola vez)
 
