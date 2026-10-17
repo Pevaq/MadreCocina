@@ -8,7 +8,7 @@ export default function Products() {
   const [categories, setCategories] = useState([])
   const [editing, setEditing] = useState(null)
 
-  const load = () => supabase.from('products').select('*, variants(*)').order('name').then(({ data }) => setProducts(data ?? []))
+  const load = () => supabase.from('products').select('*, variants(*)').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => setProducts(data ?? []))
   useEffect(() => {
     load()
     supabase.from('categories').select().order('sort').then(({ data }) => setCategories(data ?? []))

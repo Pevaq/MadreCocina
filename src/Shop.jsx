@@ -14,7 +14,7 @@ export default function Shop() {
   useEffect(() => {
     supabase.from('settings').select().single().then(({ data }) => setSettings(data))
     supabase.from('categories').select().order('sort').then(({ data }) => setCategories(data ?? []))
-    supabase.from('products').select('*, variants(*)').eq('active', true).order('name').then(({ data }) => setProducts(data ?? []))
+    supabase.from('products').select('*, variants(*)').eq('active', true).order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => setProducts(data ?? []))
   }, [])
 
   useEffect(() => { if (settings) document.title = settings.store_name }, [settings])

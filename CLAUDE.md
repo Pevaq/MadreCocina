@@ -29,7 +29,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 
 - Deploy web: `git push` a `main`.
 - Deploy función: `npx supabase functions deploy place-order --no-verify-jwt` (si cambia `supabase/functions/`).
-- Consultas a la DB desde la terminal: `npx supabase db query --linked "<sql>"` (una sentencia por llamada: con varias solo devuelve la última). Borrar archivos de Storage: `npx supabase storage rm ss:///products/<archivo> --experimental --linked --yes`.
+- Consultas a la DB desde la terminal: `npx supabase db query --linked "<sql>"` (una sentencia por llamada: con varias solo devuelve la última). SQL largo o con acentos: guardarlo en un archivo dentro de `supabase/.temp/` y usar `-f <ruta>` (pasado como argumento falla en Windows sin mostrar error). Storage: `npx supabase storage rm ss:///products/<archivo> --experimental --linked --yes` y `storage cp ./<ruta-relativa> ss:///products/<archivo> --experimental --linked` (con ruta absoluta `C:/...` falla: toma `C:` como protocolo).
 - Cambios de esquema: escribir el SQL nuevo y aplicarlo en Supabase (SQL Editor o MCP); mantener `supabase/schema.sql` como fuente de verdad.
 - Secretos de la función (`RESEND_API_KEY`, `NOTIFY_EMAIL`): en Supabase → Edge Functions → Secrets. Nunca en el repo ni en el chat.
 - Variables del repo (`SUPABASE_URL`, `SUPABASE_ANON_KEY`): GitHub → Settings → Secrets and variables → Actions → Variables.
@@ -42,6 +42,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
   - Dominio registrado en NIC Argentina, DNS en Cloudflare (plan Free): A `@` → 185.199.108–111.153, CNAME `www` → `pevaq.github.io`, **sin proxy** (nube gris: si se activa el proxy, GitHub no puede renovar el certificado).
   - El dominio está configurado en Settings → Pages (no hay archivo CNAME: el deploy es por Actions).
 - [x] Datos de prueba borrados y numeración de pedidos reiniciada en 1 (2026-10-17).
+- [ ] **Catálogo de prueba cargado en producción** (2026-10-17) para revisar la UI: 8 productos (Focaccia, Pan de masa madre, Chipá, Cookies, Alfajores de maicena, Torta de zanahoria, Cheesecake, Budín de limón), categorías Cookies/Tortas/Budines (Pan ya existía) e imágenes `test-*.svg` en Storage. Borrar antes de lanzar: productos y categorías desde el backoffice o por SQL, y las imágenes con `storage rm` (todas empiezan con `test-`).
 - [ ] Rediseño de UI (definido 2026-10-17): estilo cálido artesanal (crema, terracota/marrón, títulos serif), mobile-first (clientes llegan desde Instagram/WhatsApp), tienda primero y luego backoffice con el mismo estilo. Esperando assets de marca (logo e identidad) en `brand/`.
 
 ## Ideas / deuda conocida
