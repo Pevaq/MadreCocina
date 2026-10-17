@@ -3,3 +3,10 @@ dist
 .env
 supabase/.temp
 .claude/settings.local.json
+
+# Variantes de .env (claves); el ejemplo sí se versiona
+.env.*
+!.env.example
+
+# Assets de marca originales (logo fuente, manual, paleta). Lo que use la web se copia optimizado a public/.
+brand/
