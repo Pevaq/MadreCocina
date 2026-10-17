@@ -1,0 +1,49 @@
+# MadreCocina
+
+Tienda online de pastelería. Los clientes arman un pedido (sin pago online); la dueña lo recibe por email y lo gestiona desde un backoffice. Una sola administradora. Prioridad: costo de mantenimiento cero.
+
+Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto: actualizarlo en cada iteración (decisiones, estado, pendientes).
+
+## Arquitectura
+
+- **Frontend**: SPA Vite + React, sin router (hash `#/admin` en `src/main.jsx`). Publicada en GitHub Pages vía `.github/workflows/deploy.yml` en cada push a `main`.
+  - `src/Shop.jsx`: catálogo, carrito, checkout, pantalla de confirmación con botón de WhatsApp.
+  - `src/admin/`: login + pestañas Pendientes, Historial (CSV), Productos, Categorías, Ajustes.
+- **Supabase** (proyecto `ulazrwdhhxzimszjhpoz`): Postgres + Auth + Storage (bucket `products`). Esquema en `supabase/schema.sql`.
+- **Función `place-order`** (`supabase/functions/place-order`): único punto de entrada de pedidos. Recalcula precios desde la DB, valida fecha mínima, inserta con service role y manda email por Resend.
+- **Lógica compartida** browser/Deno: `supabase/functions/_shared/order.js` (tests en `order.test.js`, `npm test`).
+- **Keep-alive**: `.github/workflows/keep-alive.yml` consulta la DB 2 veces por semana para que Supabase free no pause el proyecto.
+
+## Decisiones (y por qué)
+
+- **Sin pagos online**: se coordina por WhatsApp/transferencia; evita backend de pagos y comisiones.
+- **WhatsApp = botón `wa.me` del cliente**, no envío automático (la API de WhatsApp Business es paga).
+- **Email solo a la dueña** vía Resend sin dominio (`onboarding@resend.dev`): Resend sin dominio verificado solo envía al email de la propia cuenta. El feedback al cliente es la pantalla de confirmación.
+- **Pendientes e historial = misma tabla `orders`** (`status` pending/delivered). Sin Google Sheets: exportación CSV en Historial.
+- **Precio de variante opcional** (`variants.price` null = precio del producto).
+- **Fecha mínima de entrega** = hoy + el mayor `lead_days` del pedido. Servidor usa `STORE_TZ` (default Buenos Aires).
+- **El público nunca escribe en la DB**: RLS solo lectura del catálogo activo; `orders` solo vía la función o el admin logueado. El registro de usuarios está desactivado en Supabase (requisito de seguridad: cualquier usuario autenticado es admin).
+- Moneda fija ARS (`src/lib.js`).
+
+## Operación
+
+- Deploy web: `git push` a `main`.
+- Deploy función: `npx supabase functions deploy place-order --no-verify-jwt` (si cambia `supabase/functions/`).
+- Cambios de esquema: escribir el SQL nuevo y aplicarlo en Supabase (SQL Editor o MCP); mantener `supabase/schema.sql` como fuente de verdad.
+- Secretos de la función (`RESEND_API_KEY`, `NOTIFY_EMAIL`): en Supabase → Edge Functions → Secrets. Nunca en el repo ni en el chat.
+- Variables del repo (`SUPABASE_URL`, `SUPABASE_ANON_KEY`): GitHub → Settings → Secrets and variables → Actions → Variables.
+- En esta máquina `gh` no está en el PATH: `"/c/Program Files/GitHub CLI/gh.exe"`.
+
+## Estado y pendientes
+
+- [x] Supabase, función de pedidos y email funcionando (2026-10-17).
+- [x] Web publicada en https://pevaq.github.io/MadreCocina/ (2026-10-17).
+- [ ] Dominio `madrecocina.com.ar`: registrado en NIC y delegado a Cloudflare (2026-10-17), esperando que la zona `.ar` lo publique. Registros en Cloudflare: A `@` → 185.199.108–111.153, CNAME `www` → `pevaq.github.io`, sin proxy. Cuando `nslookup madrecocina.com.ar 1.1.1.1` devuelva esas IPs: `gh api -X PUT repos/Pevaq/MadreCocina/pages -f cname=madrecocina.com.ar`, esperar certificado, luego `-F https_enforced=true`. No antes: github.io redirigiría a un dominio que no resuelve.
+- [ ] Borrar el pedido de prueba #1.
+
+## Ideas / deuda conocida
+
+- Fotos subidas y canceladas en el editor quedan huérfanas en Storage (`shortcut:` en `src/admin/Products.jsx`).
+- Sin protección anti-spam en el formulario de pedidos.
+- Sin opción retiro/envío (se usa el campo Notas).
+- Actions de los workflows en Node 20 (deprecado por GitHub): subir versiones cuando dejen de funcionar.
