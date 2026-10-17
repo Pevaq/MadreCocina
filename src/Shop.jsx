@@ -65,11 +65,21 @@ function ProductCard({ product, onAdd }) {
   const [img, setImg] = useState(0)
   const [qty, setQty] = useState(1)
   const variant = variants.find((v) => v.id === variantId)
+  const n = product.images.length
+  const step = (d) => setImg((img + d + n) % n)
 
   return (
     <article className="card">
       {product.images.length > 0 && (
-        <img src={imageUrl(product.images[img])} alt={product.name} onClick={() => setImg((img + 1) % product.images.length)} />
+        <div className="gallery">
+          <img src={imageUrl(product.images[img])} alt={product.name} onClick={() => step(1)} />
+          {product.images.length > 1 && (
+            <>
+              <button type="button" className="prev" onClick={() => step(-1)} aria-label="Foto anterior">‹</button>
+              <button type="button" className="next" onClick={() => step(1)} aria-label="Foto siguiente">›</button>
+            </>
+          )}
+        </div>
       )}
       {product.images.length > 1 && (
         <div className="dots">{product.images.map((_, i) => <span key={i} className={i === img ? 'on' : ''} />)}</div>
