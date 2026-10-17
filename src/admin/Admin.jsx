@@ -24,7 +24,7 @@ export default function Admin() {
     <div className="page">
       <div className="row">
         <h1>Backoffice</h1>
-        <button onClick={() => supabase.auth.signOut()}>Salir</button>
+        <button className="ghost" onClick={() => supabase.auth.signOut()}>Salir</button>
       </div>
       <nav className="chips">
         {Object.entries(TABS).map(([k, label]) => (

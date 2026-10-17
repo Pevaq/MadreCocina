@@ -97,7 +97,7 @@ function Editor({ product, categories, onClose }) {
 
   return (
     <form onSubmit={save}>
-      <div className="row"><h2>{p.id ? 'Editar' : 'Nuevo'} producto</h2><button type="button" onClick={onClose}>Volver</button></div>
+      <div className="row"><h2>{p.id ? 'Editar' : 'Nuevo'} producto</h2><button type="button" className="ghost" onClick={onClose}>Volver</button></div>
       <label>Nombre<input required value={p.name} onChange={(e) => set('name', e.target.value)} /></label>
       <label>Descripción<textarea value={p.description ?? ''} onChange={(e) => set('description', e.target.value)} /></label>
       <label>Categoría
@@ -130,10 +130,10 @@ function Editor({ product, categories, onClose }) {
           <input placeholder="Nombre" value={v.name} onChange={(e) => setVariant(i, 'name', e.target.value)} aria-label="Nombre de variante" />
           <input className="short" type="number" min="0" step="any" placeholder="Precio" value={v.price ?? ''} onChange={(e) => setVariant(i, 'price', e.target.value)} aria-label="Precio de variante" />
           <label className="check"><input type="checkbox" checked={v.active} onChange={(e) => setVariant(i, 'active', e.target.checked)} /> Visible</label>
-          <button type="button" onClick={() => set('variants', p.variants.filter((_, j) => j !== i))} aria-label="Quitar variante">✕</button>
+          <button type="button" className="icon" onClick={() => set('variants', p.variants.filter((_, j) => j !== i))} aria-label="Quitar variante">✕</button>
         </div>
       ))}
-      <button type="button" onClick={() => set('variants', [...p.variants, { name: '', price: '', active: true }])}>+ Variante</button>
+      <button type="button" className="ghost" onClick={() => set('variants', [...p.variants, { name: '', price: '', active: true }])}>+ Variante</button>
 
       {error && <p className="error">{error}</p>}
       <div className="row">

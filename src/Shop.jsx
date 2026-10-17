@@ -119,15 +119,15 @@ function Checkout({ cart, setCart, onClose, onDone }) {
   return (
     <div className="sheet">
       <form onSubmit={submit}>
-        <div className="row"><h2>Tu pedido</h2><button type="button" onClick={onClose}>Cerrar</button></div>
+        <div className="row"><h2>Tu pedido</h2><button type="button" className="ghost" onClick={onClose}>Cerrar</button></div>
         {cart.map((l) => (
-          <div key={l.key} className="row">
+          <div key={l.key} className="row line">
             <span>{l.qty} × {l.product.name}{l.variant ? ` (${l.variant.name})` : ''}</span>
             <span>{money(unitPrice(l.product, l.variant) * l.qty)}</span>
-            <button type="button" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label="Quitar">✕</button>
+            <button type="button" className="icon" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label="Quitar">✕</button>
           </div>
         ))}
-        <p className="row"><strong>Total</strong><strong>{money(total)}</strong></p>
+        <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
         <label>Nombre<input required value={form.customer_name} onChange={set('customer_name')} /></label>
         <label>Teléfono<input required type="tel" value={form.phone} onChange={set('phone')} /></label>
         <label>Fecha de entrega<input required type="date" min={min} value={date} onChange={set('delivery_date')} /></label>
