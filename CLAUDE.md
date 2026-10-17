@@ -29,6 +29,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 
 - Deploy web: `git push` a `main`.
 - Deploy función: `npx supabase functions deploy place-order --no-verify-jwt` (si cambia `supabase/functions/`).
+- Consultas a la DB desde la terminal: `npx supabase db query --linked "<sql>"` (una sentencia por llamada: con varias solo devuelve la última). Borrar archivos de Storage: `npx supabase storage rm ss:///products/<archivo> --experimental --linked --yes`.
 - Cambios de esquema: escribir el SQL nuevo y aplicarlo en Supabase (SQL Editor o MCP); mantener `supabase/schema.sql` como fuente de verdad.
 - Secretos de la función (`RESEND_API_KEY`, `NOTIFY_EMAIL`): en Supabase → Edge Functions → Secrets. Nunca en el repo ni en el chat.
 - Variables del repo (`SUPABASE_URL`, `SUPABASE_ANON_KEY`): GitHub → Settings → Secrets and variables → Actions → Variables.
@@ -40,7 +41,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - [x] Web publicada en https://madrecocina.com.ar/ con HTTPS obligatorio (2026-10-17). `www` y `pevaq.github.io/MadreCocina/` redirigen ahí.
   - Dominio registrado en NIC Argentina, DNS en Cloudflare (plan Free): A `@` → 185.199.108–111.153, CNAME `www` → `pevaq.github.io`, **sin proxy** (nube gris: si se activa el proxy, GitHub no puede renovar el certificado).
   - El dominio está configurado en Settings → Pages (no hay archivo CNAME: el deploy es por Actions).
-- [ ] Borrar el pedido de prueba #1.
+- [x] Datos de prueba borrados y numeración de pedidos reiniciada en 1 (2026-10-17).
 - [ ] Rediseño de UI (definido 2026-10-17): estilo cálido artesanal (crema, terracota/marrón, títulos serif), mobile-first (clientes llegan desde Instagram/WhatsApp), tienda primero y luego backoffice con el mismo estilo. Esperando assets de marca (logo e identidad) en `brand/`.
 
 ## Ideas / deuda conocida
