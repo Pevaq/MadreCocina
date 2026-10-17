@@ -1,0 +1,63 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib.js'
+import Orders from './Orders.jsx'
+import Products from './Products.jsx'
+import Categories from './Categories.jsx'
+import Settings from './Settings.jsx'
+
+const TABS = { pending: 'Pendientes', history: 'Historial', products: 'Productos', categories: 'Categorías', settings: 'Ajustes' }
+
+export default function Admin() {
+  const [session, setSession] = useState(undefined)
+  const [tab, setTab] = useState('pending')
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    return () => data.subscription.unsubscribe()
+  }, [])
+
+  if (session === undefined) return null
+  if (!session) return <Login />
+
+  return (
+    <div className="page">
+      <div className="row">
+        <h1>Backoffice</h1>
+        <button onClick={() => supabase.auth.signOut()}>Salir</button>
+      </div>
+      <nav className="chips">
+        {Object.entries(TABS).map(([k, label]) => (
+          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
+        ))}
+      </nav>
+      {tab === 'pending' && <Orders status="pending" />}
+      {tab === 'history' && <Orders status="delivered" />}
+      {tab === 'products' && <Products />}
+      {tab === 'categories' && <Categories />}
+      {tab === 'settings' && <Settings />}
+    </div>
+  )
+}
+
+function Login() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
+  async function submit(e) {
+    e.preventDefault()
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    setError(error ? 'Email o contraseña incorrectos.' : '')
+  }
+
+  return (
+    <form className="page narrow" onSubmit={submit}>
+      <h1>Ingresar</h1>
+      <label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+      <label>Contraseña<input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+      {error && <p className="error">{error}</p>}
+      <button>Entrar</button>
+    </form>
+  )
+}
