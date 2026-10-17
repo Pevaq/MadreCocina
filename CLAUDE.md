@@ -40,6 +40,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - [x] Web publicada en https://pevaq.github.io/MadreCocina/ (2026-10-17).
 - [ ] Dominio `madrecocina.com.ar`: registrado en NIC y delegado a Cloudflare (2026-10-17), esperando que la zona `.ar` lo publique. Registros en Cloudflare: A `@` → 185.199.108–111.153, CNAME `www` → `pevaq.github.io`, sin proxy. Cuando `nslookup madrecocina.com.ar 1.1.1.1` devuelva esas IPs: `gh api -X PUT repos/Pevaq/MadreCocina/pages -f cname=madrecocina.com.ar`, esperar certificado, luego `-F https_enforced=true`. No antes: github.io redirigiría a un dominio que no resuelve.
 - [ ] Borrar el pedido de prueba #1.
+- [ ] Rediseño de UI (definido 2026-10-17): estilo cálido artesanal (crema, terracota/marrón, títulos serif), mobile-first (clientes llegan desde Instagram/WhatsApp), tienda primero y luego backoffice con el mismo estilo. Esperando assets de marca (logo e identidad) en `brand/`.
 
 ## Ideas / deuda conocida
 
