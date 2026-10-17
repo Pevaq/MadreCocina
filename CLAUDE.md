@@ -24,6 +24,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - **Fecha mínima de entrega** = hoy + el mayor `lead_days` del pedido. Servidor usa `STORE_TZ` (default Buenos Aires).
 - **El público nunca escribe en la DB**: RLS solo lectura del catálogo activo; `orders` solo vía la función o el admin logueado. El registro de usuarios está desactivado en Supabase (requisito de seguridad: cualquier usuario autenticado es admin).
 - Moneda fija ARS (`src/lib.js`).
+- **Paleta pastel clara fija** (2026-10-17, `src/style.css`): sin modo oscuro (`color-scheme: light`), aunque el teléfono esté en oscuro. Botones salmón pastel con texto marrón (`--on-accent`); `--accent-ink` para texto de acento.
 
 ## Operación
 
