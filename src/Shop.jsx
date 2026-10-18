@@ -34,7 +34,7 @@ export default function Shop() {
 
   return (
     <div className="page">
-      <h1>{settings?.store_name}</h1>
+      <header className="brand"><h1><img src="logo.svg" alt={settings?.store_name ?? 'Madre'} width="820" height="444" /></h1></header>
       <nav className="chips">
         <button className={!category ? 'on' : ''} onClick={() => setCategory(null)}>Todo</button>
         {categories.map((c) => (
@@ -46,6 +46,10 @@ export default function Shop() {
           <ProductCard key={p.id} product={p} onAdd={add} inCart={cart.reduce((n, l) => n + (l.product.id === p.id ? l.qty : 0), 0)} />
         ))}
       </div>
+      <footer className="label">
+        <img src="panadero.svg" alt="" width="458" height="523" />
+        SIN CONSERVANTES · PRODUCTO LOCAL
+      </footer>
       {count > 0 && !checkout && (
         <button className="cart-bar" onClick={() => setCheckout(true)}>Ver pedido ({count})</button>
       )}
@@ -169,6 +173,7 @@ function Done({ order, settings, onBack }) {
 
   return (
     <div className="page done">
+      <img src="chef.svg" alt="" width="358" height="601" />
       <h1>¡Pedido recibido!</h1>
       <p>Tu pedido <strong>#{order.id}</strong> para el <strong>{order.delivery_date}</strong> quedó registrado.</p>
       <p>Total: <strong>{money(order.total)}</strong>. Te vamos a contactar al {order.phone} para coordinar.</p>

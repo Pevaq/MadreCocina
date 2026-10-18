@@ -29,7 +29,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - **Todo producto lleva al menos una foto** (2026-10-18): el editor no deja guardar sin foto (validación solo en el backoffice; la DB no lo exige porque solo escribe la admin).
 - **Borrar productos desde la lista** (2026-10-18): ícono de tacho en cada fila de Productos (pide confirmación; borra el producto y sus fotos). El botón dentro del editor sigue existiendo.
 - **Fotos HEIC** (2026-10-18): Chrome/Firefox no leen HEIC (fotos de iPhone/Mac) y la subida quedaba colgada en "Guardando…". Si el navegador no puede leer la foto, se convierte con `heic-to` (~3 MB, import dinámico: solo se descarga al subir una HEIC). Toda foto se sube como JPG ≤1200 px. Si igual no se puede leer, se muestra un error y el botón se libera.
-- **Paleta pastel clara fija** (2026-10-17, `src/style.css`): sin modo oscuro (`color-scheme: light`), aunque el teléfono esté en oscuro. Botones salmón pastel con texto marrón (`--on-accent`); `--accent-ink` para texto de acento.
+- **Identidad MADRE** (2026-10-18, reemplaza la paleta pastel provisoria): sale del Figma "Panadería" (`figma.com/design/4f02ud6U3xpTORvpJ1rUs4`). Logo = frame "Final" (284:236): "MADRE" crema `#EFE9D6` sobre el perro en patineta rojo oscuro `#860004`, fondo rojo `#a40005` con grano al 20% en overlay. Títulos en Kirang Haerang (Google Fonts, mayúsculas, como las etiquetas), texto en sans del sistema, tinta `#2c2c2d`. Claro fijo (`color-scheme: light`). Ilustraciones de la marca: dibujos a mano de la página Packaging, frame "Illust" (175:94). En la web: `public/logo.svg` (armado con las 2 capas del logo), `favicon.svg`, `panadero.svg` (pie de la tienda junto a "SIN CONSERVANTES · PRODUCTO LOCAL", como las etiquetas), `chef.svg` (confirmación del pedido), `src/grano.png`. Los SVG originales de Figma quedan en `brand/` (ignorado por git).
 
 ## Operación
 
@@ -49,8 +49,8 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
   - El dominio está configurado en Settings → Pages (no hay archivo CNAME: el deploy es por Actions).
 - [x] Datos de prueba borrados y numeración de pedidos reiniciada en 1 (2026-10-17).
 - [ ] **Catálogo de prueba cargado en producción** (2026-10-17) para revisar la UI: 8 productos (Focaccia, Pan de masa madre, Chipá, Cookies, Alfajores de maicena, Torta de zanahoria, Cheesecake, Budín de limón), categorías Cookies/Tortas/Budines (Pan ya existía) e imágenes `test-*.svg` en Storage. Borrar antes de lanzar: productos y categorías desde el backoffice o por SQL, y las imágenes con `storage rm` (todas empiezan con `test-`).
-- [ ] Rediseño de UI (definido 2026-10-17): estilo cálido artesanal (crema, terracota/marrón, títulos serif), mobile-first (clientes llegan desde Instagram/WhatsApp), tienda primero y luego backoffice con el mismo estilo. Esperando assets de marca (logo e identidad) en `brand/`. Ya aplicada una paleta pastel clara provisoria (2026-10-17). Plugin de Figma para Claude Code instalado (2026-10-18), para usar con los diseños de marca si están en Figma.
-- [ ] Confirmar que la subida de fotos HEIC funciona desde la Mac de la dueña (arreglo publicado 2026-10-18; probado solo en Edge con subida simulada).
+- [ ] Rediseño de UI con la marca MADRE (2026-10-18): aplicado a la tienda (banda roja con logo, títulos Kirang Haerang, ilustraciones) y, por los tokens compartidos, al backoffice. Falta revisarlo con la dueña.
+- [ ] Subida de fotos HEIC: la dueña reporta que no funciona (2026-10-18). Verificado que producción tiene el conversor y que una HEIC real de iPhone (3992×2992) se convierte en ~4 s en Edge. Falta saber navegador, mensaje que ve y, si se puede, la foto que falla.
 
 ## Ideas / deuda conocida
 
