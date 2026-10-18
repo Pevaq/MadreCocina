@@ -66,7 +66,12 @@ export default function Products() {
 
 // Resize in the browser so each photo is ~200 KB and the free 1 GB storage lasts.
 async function compress(file) {
-  const bmp = await createImageBitmap(file)
+  const bmp = await createImageBitmap(file).catch(async () => {
+    // Chrome/Firefox can't read HEIC (iPhone/Mac photos): convert it, loading the ~3 MB converter only then.
+    const { heicTo, isHeic } = await import('heic-to')
+    if (!(await isHeic(file))) throw new Error('unreadable image')
+    return heicTo({ blob: file, type: 'bitmap' })
+  })
   const scale = Math.min(1, 1200 / Math.max(bmp.width, bmp.height))
   const canvas = Object.assign(document.createElement('canvas'), { width: bmp.width * scale, height: bmp.height * scale })
   canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height)
@@ -82,11 +87,14 @@ function Editor({ product, categories, onClose }) {
 
   async function addImages(files) {
     setBusy(true)
+    setError('')
     const paths = []
     for (const file of [...files].slice(0, 3 - p.images.length)) {
+      const blob = await compress(file).catch(() => null)
+      if (!blob) { setError(`No se pudo leer "${file.name}". Probá con una foto JPG o PNG.`); continue }
       // shortcut: images uploaded and then cancelled stay in storage, clean up by hand if space ever matters.
       const path = `${crypto.randomUUID()}.jpg`
-      const { error } = await supabase.storage.from('products').upload(path, await compress(file), { contentType: 'image/jpeg' })
+      const { error } = await supabase.storage.from('products').upload(path, blob, { contentType: 'image/jpeg' })
       if (error) setError(error.message)
       else paths.push(path)
     }
@@ -159,7 +167,7 @@ function Editor({ product, categories, onClose }) {
             <button type="button" onClick={() => set('images', p.images.filter((x) => x !== path))} aria-label="Quitar foto">✕</button>
           </div>
         ))}
-        {p.images.length < 3 && <input type="file" accept="image/*" multiple disabled={busy} onChange={(e) => addImages(e.target.files)} aria-label="Agregar fotos" />}
+        {p.images.length < 3 && <input type="file" accept="image/*,.heic,.heif" multiple disabled={busy} onChange={(e) => addImages(e.target.files)} aria-label="Agregar fotos" />}
       </div>
 
       <h3>Variantes</h3>
