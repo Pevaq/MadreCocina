@@ -79,6 +79,8 @@ function Editor({ product, categories, onClose }) {
   const [busy, setBusy] = useState(false)
   const set = (k, v) => setP({ ...p, [k]: v })
   const setVariant = (i, k, v) => set('variants', p.variants.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
+  // Photos reorder by dragging; the first one is the cover in the shop.
+  const photos = useSortable(p.images.map((id) => ({ id })), (list) => setP((cur) => ({ ...cur, images: list.map((x) => x.id) })))
 
   async function addImages(files) {
     setBusy(true)
@@ -163,11 +165,11 @@ function Editor({ product, categories, onClose }) {
 
       <section className="box">
         <h3>Fotos ({p.images.length}/3)</h3>
-        <p className="muted">Al menos una. La primera es la portada en la tienda.</p>
+        <p className="muted">Al menos una. La primera es la portada en la tienda; arrastrá las fotos para cambiar el orden.</p>
         <div className="photos">
           {p.images.map((path, i) => (
-            <div key={path} className="photo">
-              <img src={imageUrl(path)} alt="" />
+            <div key={path} className={`photo${photos.dragging === path ? ' dragging' : ''}`} data-sort-id={path}>
+              <img src={imageUrl(path)} alt="" {...photos.grip(path)} />
               {i === 0 && <span className="badge">Portada</span>}
               <button type="button" onClick={() => set('images', p.images.filter((x) => x !== path))} aria-label="Quitar foto">✕</button>
             </div>

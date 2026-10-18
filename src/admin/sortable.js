@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { supabase } from '../lib.js'
 
 // Drag-and-drop reordering with pointer events: works with mouse and touch, no library.
-// Rows carry data-sort-id; the drag handle gets handle(id). On drop, saves `sort` = position.
+// Rows carry data-sort-id; the drag handle gets handle(id) (or grip(id) on any element).
+// On drop, saves `sort` = position in `table`; without a table the new order only stays in state.
 export function useSortable(items, setItems, table, setError) {
   const [dragging, setDragging] = useState(null)
 
@@ -24,6 +25,7 @@ export function useSortable(items, setItems, table, setError) {
       removeEventListener('pointerup', end)
       removeEventListener('pointercancel', end)
       setDragging(null)
+      if (!table) return
       const results = await Promise.all(list.map((x, i) => x.sort !== i && supabase.from(table).update({ sort: i }).eq('id', x.id)))
       setError(results.find((r) => r?.error)?.error.message ?? '')
       setItems(list.map((x, i) => ({ ...x, sort: i })))
@@ -42,5 +44,7 @@ export function useSortable(items, setItems, table, setError) {
     children: '⠿',
   })
 
-  return { dragging, handle }
+  const grip = (id) => ({ onPointerDown: (e) => start(e, id), draggable: false })
+
+  return { dragging, handle, grip }
 }

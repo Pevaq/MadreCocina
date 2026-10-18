@@ -181,7 +181,7 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 12px; }
 .fields label { margin: 0; }
 .photos { display: flex; flex-wrap: wrap; gap: 12px; }
-.photos .photo img { display: block; width: 96px; height: 96px; object-fit: cover; border-radius: 10px; }
+.photos .photo img { display: block; width: 96px; height: 96px; object-fit: cover; border-radius: 10px; touch-action: none; cursor: grab; user-select: none; -webkit-user-drag: none; }
 .photos .photo .badge { position: absolute; left: 6px; bottom: 6px; font-size: .7em; }
 .add-photo { display: grid; place-items: center; width: 96px; height: 96px; margin: 0; border: 1.5px dashed var(--muted); border-radius: 10px; color: var(--accent-ink); font-weight: 600; cursor: pointer; }
 .add-photo.busy { color: var(--muted); cursor: progress; }
