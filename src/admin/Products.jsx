@@ -2,6 +2,21 @@ import { useEffect, useState } from 'react'
 import { supabase, imageUrl, money } from '../lib.js'
 import { useSortable } from './sortable.js'
 
+// Asks first; returns an error message, '' if it was deleted, or null if she cancelled.
+async function deleteProduct(product, images = product.images) {
+  if (!confirm(`¿Borrar "${product.name}"? Los pedidos viejos no se afectan.`)) return null
+  const { error } = await supabase.from('products').delete().eq('id', product.id)
+  if (error) return error.message
+  if (images.length) await supabase.storage.from('products').remove(images)
+  return ''
+}
+
+const TrashIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" />
+  </svg>
+)
+
 const EMPTY = { name: '', description: '', price: '', lead_days: 1, stock: 0, category_id: null, images: [], active: true, variants: [] }
 
 export default function Products() {
@@ -24,12 +39,24 @@ export default function Products() {
       {error && <p className="error">{error}</p>}
       <button onClick={() => setEditing({ ...EMPTY, sort: products.length })}>+ Nuevo producto</button>
       {products.map((p) => (
-        <article key={p.id} className={`card row${dragging === p.id ? ' dragging' : ''}`} data-sort-id={p.id} onClick={() => setEditing(p)}>
+        <article key={p.id} className={`card row product${dragging === p.id ? ' dragging' : ''}`} data-sort-id={p.id} onClick={() => setEditing(p)}>
           <button {...handle(p.id)} />
           {p.images[0] && <img className="thumb" src={imageUrl(p.images[0])} alt="" />}
-          <span>{p.name}{!p.active && <em className="muted"> (oculto)</em>}</span>
-          <span className={p.stock > 0 ? 'muted' : 'error'}>{p.stock > 0 ? `Stock ${p.stock}` : 'Agotado'}</span>
-          <span>{money(p.price)}</span>
+          <div className="info">
+            <span>{p.name}</span>
+            <small>
+              {money(p.price)} · <span className={p.stock > 0 ? 'muted' : 'error'}>{p.stock > 0 ? `Stock ${p.stock}` : 'Agotado'}</span>
+              {!p.active && <em className="muted"> · oculto</em>}
+            </small>
+          </div>
+          <button
+            type="button" className="icon delete" aria-label={`Borrar ${p.name}`}
+            onClick={async (e) => {
+              e.stopPropagation()
+              const error = await deleteProduct(p)
+              if (error !== null) { setError(error); load() }
+            }}
+          ><TrashIcon /></button>
         </article>
       ))}
       {products.length > 1 && <p className="muted">Arrastrá ⠿ para cambiar el orden en la tienda.</p>}
@@ -98,11 +125,10 @@ function Editor({ product, categories, onClose }) {
   }
 
   async function remove() {
-    if (!confirm(`¿Borrar "${p.name}"? Los pedidos viejos no se afectan.`)) return
-    const { error } = await supabase.from('products').delete().eq('id', p.id)
-    if (error) return setError(error.message)
-    if (p.images.length) await supabase.storage.from('products').remove(p.images)
-    onClose()
+    // Saved photos plus any uploaded in this edit, so none are left behind in storage.
+    const error = await deleteProduct(product, [...new Set([...product.images, ...p.images])])
+    if (error) setError(error)
+    else if (error === '') onClose()
   }
 
   return (
