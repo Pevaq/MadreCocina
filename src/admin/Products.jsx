@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, imageUrl, money } from '../lib.js'
 import { useSortable } from './sortable.js'
+import TrashIcon from './TrashIcon.jsx'
 
 // Asks first; returns an error message, '' if it was deleted, or null if she cancelled.
 async function deleteProduct(product, images = product.images) {
@@ -10,12 +11,6 @@ async function deleteProduct(product, images = product.images) {
   if (images.length) await supabase.storage.from('products').remove(images)
   return ''
 }
-
-const TrashIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" />
-  </svg>
-)
 
 const EMPTY = { name: '', description: '', price: '', lead_days: 1, stock: 0, category_id: null, images: [], active: true, variants: [] }
 
@@ -140,52 +135,70 @@ function Editor({ product, categories, onClose }) {
   }
 
   return (
-    <form onSubmit={save}>
+    <form className="editor" onSubmit={save}>
       <div className="row"><h2>{p.id ? 'Editar' : 'Nuevo'} producto</h2><button type="button" className="ghost" onClick={onClose}>Volver</button></div>
-      <label>Nombre<input required value={p.name} onChange={(e) => set('name', e.target.value)} /></label>
-      <label>Descripción<textarea value={p.description ?? ''} onChange={(e) => set('description', e.target.value)} /></label>
-      <label>Categoría
-        <select value={p.category_id ?? ''} onChange={(e) => set('category_id', Number(e.target.value) || null)}>
-          <option value="">Sin categoría</option>
-          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </label>
-      <div className="row">
-        <label>Precio<input required type="number" min="0" step="any" value={p.price} onChange={(e) => set('price', e.target.value)} /></label>
-        <label>Días de anticipación<input required type="number" min="0" value={p.lead_days} onChange={(e) => set('lead_days', e.target.value)} /></label>
-        <label>Stock<input required type="number" min="0" step="1" value={p.stock} onChange={(e) => set('stock', e.target.value)} /></label>
-      </div>
-      <p className="muted">Los pedidos descuentan stock solos; si borrás un pedido pendiente, vuelve. En 0 figura como Agotado.</p>
-      <label className="check"><input type="checkbox" checked={p.active} onChange={(e) => set('active', e.target.checked)} /> Visible en la tienda</label>
 
-      <h3>Fotos ({p.images.length}/3)</h3>
-      <p className="muted">Al menos una. La primera es la que se ve en la tienda.</p>
-      <div className="row">
-        {p.images.map((path) => (
-          <div key={path} className="photo">
-            <img className="thumb" src={imageUrl(path)} alt="" />
-            <button type="button" onClick={() => set('images', p.images.filter((x) => x !== path))} aria-label="Quitar foto">✕</button>
+      <section className="box">
+        <label>Nombre<input required value={p.name} onChange={(e) => set('name', e.target.value)} /></label>
+        <label>Descripción<textarea value={p.description ?? ''} onChange={(e) => set('description', e.target.value)} /></label>
+        <label>Categoría
+          <select value={p.category_id ?? ''} onChange={(e) => set('category_id', Number(e.target.value) || null)}>
+            <option value="">Sin categoría</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+        <label className="check"><input type="checkbox" checked={p.active} onChange={(e) => set('active', e.target.checked)} /> Visible en la tienda</label>
+      </section>
+
+      <section className="box">
+        <h3>Precio y stock</h3>
+        <div className="fields">
+          <label>Precio<input required type="number" min="0" step="any" value={p.price} onChange={(e) => set('price', e.target.value)} /></label>
+          <label>Stock<input required type="number" min="0" step="1" value={p.stock} onChange={(e) => set('stock', e.target.value)} /></label>
+          <label>Días de anticipación<input required type="number" min="0" value={p.lead_days} onChange={(e) => set('lead_days', e.target.value)} /></label>
+        </div>
+        <p className="muted">Stock: los pedidos lo descuentan solos y vuelve si borrás un pedido sin entregar; en 0 figura Agotado.</p>
+        <p className="muted">Anticipación: sin contar hoy. Con 2, si hoy es domingo se puede pedir desde el miércoles; con 0, para hoy.</p>
+      </section>
+
+      <section className="box">
+        <h3>Fotos ({p.images.length}/3)</h3>
+        <p className="muted">Al menos una. La primera es la portada en la tienda.</p>
+        <div className="photos">
+          {p.images.map((path, i) => (
+            <div key={path} className="photo">
+              <img src={imageUrl(path)} alt="" />
+              {i === 0 && <span className="badge">Portada</span>}
+              <button type="button" onClick={() => set('images', p.images.filter((x) => x !== path))} aria-label="Quitar foto">✕</button>
+            </div>
+          ))}
+          {p.images.length < 3 && (
+            <label className={`add-photo${busy ? ' busy' : ''}`}>
+              <input type="file" accept="image/*,.heic,.heif" multiple disabled={busy} onChange={(e) => addImages(e.target.files)} />
+              {busy ? 'Subiendo…' : '+ Foto'}
+            </label>
+          )}
+        </div>
+      </section>
+
+      <section className="box">
+        <h3>Variantes</h3>
+        <p className="muted">Ej.: aceitunas, tomates. Dejá el precio vacío para usar el del producto.</p>
+        {p.variants.map((v, i) => (
+          <div key={v.id ?? `new-${i}`} className="variant">
+            <input placeholder="Nombre" value={v.name} onChange={(e) => setVariant(i, 'name', e.target.value)} aria-label="Nombre de variante" />
+            <input type="number" min="0" step="any" placeholder="Precio" value={v.price ?? ''} onChange={(e) => setVariant(i, 'price', e.target.value)} aria-label="Precio de variante" />
+            <label className="check"><input type="checkbox" checked={v.active} onChange={(e) => setVariant(i, 'active', e.target.checked)} /> Visible</label>
+            <button type="button" className="icon" onClick={() => set('variants', p.variants.filter((_, j) => j !== i))} aria-label="Quitar variante">✕</button>
           </div>
         ))}
-        {p.images.length < 3 && <input type="file" accept="image/*,.heic,.heif" multiple disabled={busy} onChange={(e) => addImages(e.target.files)} aria-label="Agregar fotos" />}
-      </div>
-
-      <h3>Variantes</h3>
-      <p className="muted">Ej.: aceitunas, tomates. Dejá el precio vacío para usar el del producto.</p>
-      {p.variants.map((v, i) => (
-        <div key={v.id ?? `new-${i}`} className="row">
-          <input placeholder="Nombre" value={v.name} onChange={(e) => setVariant(i, 'name', e.target.value)} aria-label="Nombre de variante" />
-          <input className="short" type="number" min="0" step="any" placeholder="Precio" value={v.price ?? ''} onChange={(e) => setVariant(i, 'price', e.target.value)} aria-label="Precio de variante" />
-          <label className="check"><input type="checkbox" checked={v.active} onChange={(e) => setVariant(i, 'active', e.target.checked)} /> Visible</label>
-          <button type="button" className="icon" onClick={() => set('variants', p.variants.filter((_, j) => j !== i))} aria-label="Quitar variante">✕</button>
-        </div>
-      ))}
-      <button type="button" className="ghost" onClick={() => set('variants', [...p.variants, { name: '', price: '', active: true }])}>+ Variante</button>
+        <button type="button" className="ghost" onClick={() => set('variants', [...p.variants, { name: '', price: '', active: true }])}>+ Variante</button>
+      </section>
 
       {error && <p className="error">{error}</p>}
-      <div className="row">
+      <div className="actions">
         <button disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
-        {p.id && <button type="button" className="danger" onClick={remove}>Borrar producto</button>}
+        {p.id && <button type="button" className="ghost danger" onClick={remove}>Borrar producto</button>}
       </div>
     </form>
   )

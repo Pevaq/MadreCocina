@@ -14,7 +14,10 @@ test('addDays crosses month and year', () => {
   assert.equal(addDays('2026-12-30', 3), '2027-01-02')
 })
 
-test('min date uses the longest lead time', () => {
-  assert.equal(minDeliveryDate('2026-10-17', [1, 3, 0]), '2026-10-20')
+test('min date uses the longest lead time, not counting today', () => {
+  assert.equal(minDeliveryDate('2026-10-18', [2]), '2026-10-21')
+  assert.equal(minDeliveryDate('2026-10-17', [1, 3, 0]), '2026-10-21')
+  assert.equal(minDeliveryDate('2026-10-17', [1]), '2026-10-19')
+  assert.equal(minDeliveryDate('2026-10-17', [0]), '2026-10-17')
   assert.equal(minDeliveryDate('2026-10-17', []), '2026-10-17')
 })

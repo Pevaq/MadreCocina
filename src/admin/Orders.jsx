@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, money, longDate } from '../lib.js'
 import { todayIn, addDays } from '../../supabase/functions/_shared/order.js'
+import TrashIcon from './TrashIcon.jsx'
 
 const itemsText = (items) => items.map((l) => `${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join(', ')
 
@@ -79,7 +80,7 @@ export default function Orders({ status }) {
         <div key={day} className="day">
           <h3 className={pending && day < today ? 'late' : ''}>{dayTitle(day, today, pending)}</h3>
           {orders.filter((o) => o.delivery_date === day).map((o) => (
-            <OrderRow key={o.id} order={o} onOpen={() => setOpenId(o.id)} onUpdate={update} />
+            <OrderRow key={o.id} order={o} onOpen={() => setOpenId(o.id)} onUpdate={update} onRemove={remove} />
           ))}
         </div>
       ))}
@@ -96,7 +97,7 @@ function StatusSelect({ order, onUpdate }) {
   )
 }
 
-function OrderRow({ order, onOpen, onUpdate }) {
+function OrderRow({ order, onOpen, onUpdate, onRemove }) {
   return (
     <article className="card order" onClick={onOpen}>
       <div className="row">
@@ -108,6 +109,7 @@ function OrderRow({ order, onOpen, onUpdate }) {
       <div className="row" onClick={(e) => e.stopPropagation()}>
         <StatusSelect order={order} onUpdate={onUpdate} />
         <span className="muted">{order.wholesale && 'Mayorista · '}#{order.id}</span>
+        <button type="button" className="icon delete" onClick={() => onRemove(order)} aria-label={`Borrar pedido #${order.id}`}><TrashIcon /></button>
       </div>
     </article>
   )

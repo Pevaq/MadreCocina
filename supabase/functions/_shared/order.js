@@ -14,4 +14,8 @@ export function addDays(isoDate, days) {
 }
 
 // The earliest date allowed is set by the product that needs the most notice.
-export const minDeliveryDate = (today, leadDays) => addDays(today, Math.max(0, ...leadDays))
+// Today doesn't count: 2 days ordered on Sunday 18 → Wednesday 21. 0 days = today.
+export function minDeliveryDate(today, leadDays) {
+  const lead = Math.max(0, ...leadDays)
+  return lead === 0 ? today : addDays(today, lead + 1)
+}
