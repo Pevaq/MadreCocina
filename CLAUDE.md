@@ -7,7 +7,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 ## Arquitectura
 
 - **Frontend**: SPA Vite + React, sin router (hash `#/admin` en `src/main.jsx`). Publicada en GitHub Pages vía `.github/workflows/deploy.yml` en cada push a `main`.
-  - `src/Shop.jsx`: catálogo, carrito, checkout, pantalla de confirmación con botón de WhatsApp.
+  - `src/Shop.jsx`: catálogo, carrito, checkout, pantalla de confirmación (datos de transferencia + botón de WhatsApp) y botón flotante de WhatsApp.
   - `src/admin/`: login + pestañas Pendientes, Historial (CSV), Productos, Categorías, Ajustes.
 - **Supabase** (proyecto `ulazrwdhhxzimszjhpoz`): Postgres + Auth + Storage (bucket `products`). Esquema en `supabase/schema.sql`.
 - **Función `place-order`** (`supabase/functions/place-order`): único punto de entrada de pedidos. Recalcula precios desde la DB, valida fecha mínima, inserta con service role y manda email por Resend.
@@ -18,7 +18,9 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 ## Decisiones (y por qué)
 
 - **Sin pagos online**: se coordina por WhatsApp/transferencia; evita backend de pagos y comisiones.
-- **WhatsApp = botón `wa.me` del cliente**, no envío automático (la API de WhatsApp Business es paga).
+- **WhatsApp = botón `wa.me` del cliente**, no envío automático (la API de WhatsApp Business es paga). Número y on/off en Ajustes; también controla el botón flotante de la tienda (píldora roja con la galleta de las ilustraciones, sube cuando aparece la barra del carrito).
+- **Pago por transferencia** (2026-10-18): alias y titular (+ banco) en Ajustes (`settings.transfer_alias`, `transfer_holder`; lectura pública, son para el cliente). La confirmación dice "¡Recibimos tu pedido!", fecha en palabras y total, el alias con botón Copiar, y pide mandar el comprobante por WhatsApp para empezar a prepararlo; el mensaje de WhatsApp ya viene armado con nombre, fecha, productos y total. Sin alias, solo "te vamos a escribir para coordinar".
+- **El cliente no ve el número de pedido** (2026-10-18): delataría cuántos pedidos recibe la tienda. La dueña identifica el pedido por nombre/fecha; el número sigue en el email y el backoffice.
 - **Email solo a la dueña** vía Resend sin dominio (`onboarding@resend.dev`): Resend sin dominio verificado solo envía al email de la propia cuenta. El feedback al cliente es la pantalla de confirmación.
 - **Pendientes e historial = misma tabla `orders`** (`status` pending/delivered). Sin Google Sheets: exportación CSV en Historial.
 - **Precio de variante opcional** (`variants.price` null = precio del producto).

@@ -31,6 +31,7 @@ export default function Shop() {
 
   const shown = products.filter((p) => !category || p.category_id === category)
   const count = cart.reduce((n, l) => n + l.qty, 0)
+  const wa = whatsapp(settings)
 
   return (
     <div className="page">
@@ -52,6 +53,12 @@ export default function Shop() {
       </footer>
       {count > 0 && !checkout && (
         <button className="cart-bar" onClick={() => setCheckout(true)}>Ver pedido ({count})</button>
+      )}
+      {wa && !checkout && (
+        <a className={`wa-float${count > 0 ? ' up' : ''}`} href={wa} target="_blank" rel="noreferrer">
+          <img src="galleta.svg" alt="" width="472" height="476" />
+          WhatsApp
+        </a>
       )}
       {checkout && (
         <Checkout
@@ -166,23 +173,45 @@ function Checkout({ cart, setCart, onClose, onDone }) {
   )
 }
 
+// wa.me link to the store, or null when WhatsApp is off or has no number.
+const whatsapp = (settings, text) =>
+  settings?.whatsapp_on && settings.whatsapp_number
+    ? `https://wa.me/${settings.whatsapp_number}${text ? `?text=${encodeURIComponent(text)}` : ''}`
+    : null
+
+// "sábado, 25 de octubre"; noon so no timezone moves it to the day before.
+const longDate = (iso) => new Date(`${iso}T12:00`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+// The order number is not shown: it would tell customers how many orders the store gets.
 function Done({ order, settings, onBack }) {
+  const [copied, setCopied] = useState(false)
+  const date = longDate(order.delivery_date)
+  const alias = settings?.transfer_alias
   const lines = order.items.map((l) => `• ${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join('\n')
-  const msg = `Hola! Soy ${order.customer_name}, hice el pedido #${order.id} para el ${order.delivery_date}:\n${lines}\nTotal: ${money(order.total)}`
-  const wa = settings?.whatsapp_on && settings.whatsapp_number
+  const msg = `Hola! Soy ${order.customer_name}, hice un pedido para el ${date}:\n${lines}\nTotal: ${money(order.total)}${alias ? '\nTe mando el comprobante de la transferencia.' : ''}`
+  const wa = whatsapp(settings, msg)
+  const copy = () => navigator.clipboard.writeText(alias).then(() => setCopied(true), () => {})
 
   return (
     <div className="page done">
       <img src="chef.svg" alt="" width="358" height="601" />
-      <h1>¡Pedido recibido!</h1>
-      <p>Tu pedido <strong>#{order.id}</strong> para el <strong>{order.delivery_date}</strong> quedó registrado.</p>
-      <p>Total: <strong>{money(order.total)}</strong>. Te vamos a contactar al {order.phone} para coordinar.</p>
-      {wa && (
-        <a className="button" href={`https://wa.me/${settings.whatsapp_number}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer">
-          Avisar por WhatsApp
-        </a>
+      <h1>¡Recibimos tu pedido!</h1>
+      <p>Es para el <strong>{date}</strong>. Total: <strong>{money(order.total)}</strong>.</p>
+      {alias && (
+        <>
+          <p>Para confirmarlo, transferí el total a este alias:</p>
+          <div className="card pay">
+            <strong>{alias}</strong>
+            {settings.transfer_holder && <span className="muted">{settings.transfer_holder}</span>}
+            <button type="button" className="ghost" onClick={copy}>{copied ? 'Copiado ✓' : 'Copiar alias'}</button>
+          </div>
+        </>
       )}
-      <button onClick={onBack}>Volver a la tienda</button>
+      {alias && wa
+        ? <p>Después mandanos el comprobante por WhatsApp y empezamos a preparar tu pedido.</p>
+        : <p>Te vamos a escribir al {order.phone} para coordinar.</p>}
+      {wa && <a className="button" href={wa} target="_blank" rel="noreferrer">{alias ? 'Enviar comprobante por WhatsApp' : 'Avisar por WhatsApp'}</a>}
+      <button className="ghost" onClick={onBack}>Volver a la tienda</button>
     </div>
   )
 }

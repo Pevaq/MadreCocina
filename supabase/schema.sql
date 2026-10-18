@@ -5,7 +5,9 @@ create table settings (
   store_name text not null default 'Pastelería',
   whatsapp_number text,             -- international format without "+", e.g. 5491112345678
   whatsapp_on boolean not null default true,
-  email_on boolean not null default true
+  email_on boolean not null default true,
+  transfer_alias text,              -- shown to the customer after ordering, to pay by bank transfer
+  transfer_holder text              -- account holder (and bank) so the customer can check before sending
 );
 insert into settings default values;
 

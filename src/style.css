@@ -114,3 +114,12 @@ button.icon.delete:hover { color: var(--danger); }
 .label { text-align: center; color: var(--muted); font-size: .8em; font-weight: 700; letter-spacing: .06em; padding-top: 40px; }
 .label img { display: block; width: 150px; height: auto; margin: 0 auto 12px; }
 .done img { width: 140px; height: auto; }
+.done .pay { display: grid; gap: 4px; justify-items: center; width: 100%; max-width: 360px; margin: 0; padding: 16px; }
+.done .pay strong { font-size: 1.3em; word-break: break-all; }
+.done .pay .muted { margin: 0; }
+.done .pay button { margin-top: 8px; min-width: 0; }
+
+/* WhatsApp: pill in brand red with the cookie doodle; moves up when the cart bar is showing. */
+.wa-float { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 8px; padding: 6px 16px 6px 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; box-shadow: 0 6px 20px rgb(44 44 45 / .25); }
+.wa-float.up { bottom: calc(84px + env(safe-area-inset-bottom)); }
+.wa-float img { width: 44px; height: 44px; padding: 6px; border-radius: 50%; background: var(--on-accent); }
