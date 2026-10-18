@@ -5,11 +5,13 @@ import Products from './Products.jsx'
 import Categories from './Categories.jsx'
 import Settings from './Settings.jsx'
 
-const TABS = { pending: 'Pendientes', history: 'Historial', products: 'Productos', categories: 'Categorías', settings: 'Ajustes' }
+const TABS = { orders: 'Pedidos', manage: 'Gestión', settings: 'Ajustes' }
+const ORDER_TABS = { pending: 'Pendientes', delivered: 'Finalizados' }
+const MANAGE_TABS = { products: 'Productos', categories: 'Categorías' }
 
 export default function Admin() {
   const [session, setSession] = useState(undefined)
-  const [tab, setTab] = useState('pending')
+  const [tab, setTab] = useState('orders')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -31,12 +33,25 @@ export default function Admin() {
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
         ))}
       </nav>
-      {tab === 'pending' && <Orders status="pending" />}
-      {tab === 'history' && <Orders status="delivered" />}
-      {tab === 'products' && <Products />}
-      {tab === 'categories' && <Categories />}
+      {tab === 'orders' && <SubTabs tabs={ORDER_TABS}>{(k) => <Orders key={k} status={k} />}</SubTabs>}
+      {tab === 'manage' && <SubTabs tabs={MANAGE_TABS}>{(k) => (k === 'products' ? <Products /> : <Categories />)}</SubTabs>}
       {tab === 'settings' && <Settings />}
     </div>
+  )
+}
+
+// Second level of navigation inside a module (Pedidos, Gestión).
+function SubTabs({ tabs, children }) {
+  const [tab, setTab] = useState(Object.keys(tabs)[0])
+  return (
+    <>
+      <nav className="tabs">
+        {Object.entries(tabs).map(([k, label]) => (
+          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
+        ))}
+      </nav>
+      {children(tab)}
+    </>
   )
 }
 

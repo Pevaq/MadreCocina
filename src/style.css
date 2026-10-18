@@ -48,7 +48,7 @@ textarea { min-height: 88px; resize: vertical; }
 select { appearance: none; padding-right: 40px; background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%232c2c2d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center / 12px 8px; }
 label { display: grid; gap: 6px; margin: 0 0 16px; font-size: .95em; }
 label.check { display: flex; gap: 10px; align-items: center; }
-label.check input { width: 20px; height: 20px; min-height: 0; margin: 0; }
+label.check input { width: 20px; height: 20px; min-height: 0; margin: 0; accent-color: var(--accent); }
 .short { width: 96px; flex: none; }
 .muted { color: var(--muted); font-size: .9em; margin: 0 0 6px; }
 .error { color: var(--danger); margin: 12px 0; }
@@ -57,6 +57,7 @@ label.check input { width: 20px; height: 20px; min-height: 0; margin: 0; }
 .row > input:not(.short):not([type=checkbox]) { flex: 1; width: auto; min-width: 120px; }
 .row > label:not(.check) { flex: 1; min-width: 140px; margin: 0; }
 section > .row, form > .row { margin-bottom: 16px; }
+.row > h1, .row > h2 { margin: 0; }
 section > button { margin-bottom: 16px; }
 
 /* Category chips scroll edge to edge on phones. */
@@ -136,9 +137,24 @@ button.icon.delete:hover { color: var(--danger); }
 .card.order .muted { margin: 0; }
 select.status { width: auto; min-height: 36px; padding: 4px 36px 4px 14px; background-position: right 14px center; border-radius: 999px; font-weight: 600; font-size: .9em; }
 select.status.paid { background-color: var(--soft); }
-select.status.fermenting, select.status.preparing { background-color: #f3dca8; border-color: #e6c77f; }
+select.status.preparing { background-color: #f3dca8; border-color: #e6c77f; }
 select.status.ready { background-color: var(--accent); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23efe9d6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); color: var(--on-accent); border-color: var(--accent); }
-.steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; }
-.steps button { background: var(--card); color: var(--fg); border-color: var(--line); border-radius: 999px; min-height: 40px; padding: 8px 14px; font-weight: 500; }
-.steps button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.panel > button.danger { width: 100%; margin-top: 12px; }
+.order-detail header { margin-bottom: 16px; flex-wrap: nowrap; }
+.order-detail h2 { line-height: 1; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 10px 16px; align-items: center; margin: 0 0 20px; }
+.facts dt { color: var(--muted); font-size: .9em; }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.lines { border-top: 1px solid var(--line); margin-bottom: 16px; }
+.lines .line { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.lines .line > :last-child { white-space: nowrap; }
+.wholesale { display: flex; align-items: center; gap: 16px; min-height: 44px; margin-bottom: 20px; }
+.wholesale label { margin: 0; }
+.wholesale .amount { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.wholesale .amount input { width: 130px; }
+.order-detail > button.danger { width: 100%; }
+button.ghost.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+
+/* Second-level tabs inside a module: underlined, so they don't compete with the main pills. */
+.tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--line); margin: -8px 0 20px; }
+.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0; color: var(--muted); padding: 10px 2px; margin-bottom: -1px; font-weight: 600; }
+.tabs button.on { color: var(--accent-ink); border-bottom-color: var(--accent); }

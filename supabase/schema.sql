@@ -47,9 +47,10 @@ create table orders (
   notes text,
   items jsonb not null,             -- [{product_id, name, variant, qty, price}] frozen at order time
   total numeric(12,2) not null,
-  -- pending (Recibido) → paid → fermenting → preparing → ready → delivered; labels in src/admin/Orders.jsx
-  status text not null default 'pending' check (status in ('pending', 'paid', 'fermenting', 'preparing', 'ready', 'delivered')),
-  amount_received numeric(12,2),
+  -- pending (Recibido) → paid → preparing → ready → delivered; labels in src/admin/Orders.jsx
+  status text not null default 'pending' check (status in ('pending', 'paid', 'preparing', 'ready', 'delivered')),
+  wholesale boolean not null default false,  -- "Precio mayorista": the admin types what was actually charged
+  amount_received numeric(12,2),    -- what was charged: the total, or the typed amount for wholesale
   delivered_at timestamptz
 );
 
