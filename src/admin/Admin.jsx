@@ -24,7 +24,7 @@ export default function Admin() {
 
   return (
     <div className="page">
-      <div className="row">
+      <div className="row admin-head">
         <h1>Backoffice</h1>
         <button className="ghost" onClick={() => supabase.auth.signOut()}>Salir</button>
       </div>

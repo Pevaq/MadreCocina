@@ -191,3 +191,4 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
 .variant input { min-width: 0; }
 .box > .ghost { margin-top: 4px; }
 .actions { position: sticky; bottom: 0; display: flex; justify-content: space-between; gap: 12px; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--line); }
+.admin-head { margin-bottom: 28px; }
