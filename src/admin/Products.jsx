@@ -69,6 +69,7 @@ function Editor({ product, categories, onClose }) {
 
   async function save(e) {
     e.preventDefault()
+    if (!p.images.length) return setError('Agregá al menos una foto.')
     setBusy(true)
     const { variants, id, ...fields } = p
     const row = { ...fields, price: Number(fields.price), lead_days: Number(fields.lead_days), stock: Number(fields.stock), category_id: fields.category_id || null }
@@ -124,6 +125,7 @@ function Editor({ product, categories, onClose }) {
       <label className="check"><input type="checkbox" checked={p.active} onChange={(e) => set('active', e.target.checked)} /> Visible en la tienda</label>
 
       <h3>Fotos ({p.images.length}/3)</h3>
+      <p className="muted">Al menos una. La primera es la que se ve en la tienda.</p>
       <div className="row">
         {p.images.map((path) => (
           <div key={path} className="photo">
