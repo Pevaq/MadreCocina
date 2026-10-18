@@ -50,10 +50,10 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - [x] Datos de prueba borrados y numeración de pedidos reiniciada en 1 (2026-10-17).
 - [ ] **Catálogo de prueba cargado en producción** (2026-10-17) para revisar la UI: 8 productos (Focaccia, Pan de masa madre, Chipá, Cookies, Alfajores de maicena, Torta de zanahoria, Cheesecake, Budín de limón), categorías Cookies/Tortas/Budines (Pan ya existía) e imágenes `test-*.svg` en Storage. Borrar antes de lanzar: productos y categorías desde el backoffice o por SQL, y las imágenes con `storage rm` (todas empiezan con `test-`).
 - [ ] Rediseño de UI con la marca MADRE (2026-10-18): aplicado a la tienda (banda roja con logo, títulos Kirang Haerang, ilustraciones) y, por los tokens compartidos, al backoffice. Falta revisarlo con la dueña.
-- [ ] Subida de fotos HEIC: la dueña reporta que no funciona (2026-10-18). Verificado que producción tiene el conversor y que una HEIC real de iPhone (3992×2992) se convierte en ~4 s en Edge. Falta saber navegador, mensaje que ve y, si se puede, la foto que falla.
 
 ## Ideas / deuda conocida
 
+- **Subida de fotos HEIC** (deuda aceptada 2026-10-18): la dueña reporta que no le funciona desde su Mac. Verificado que producción tiene el conversor y que una HEIC real de iPhone (3992×2992) se convierte en ~4 s en Edge; no se pudo reproducir. Para retomarlo: averiguar navegador, mensaje que ve y conseguir la foto que falla. Mientras tanto, exportar las fotos como JPG antes de subirlas.
 - Fotos subidas y canceladas en el editor quedan huérfanas en Storage (`shortcut:` en `src/admin/Products.jsx`).
 - Sin protección anti-spam en el formulario de pedidos.
 - Sin opción retiro/envío (se usa el campo Notas).
