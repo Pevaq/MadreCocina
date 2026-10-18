@@ -66,6 +66,8 @@ section > button { margin-bottom: 16px; }
 .grid .card { margin: 0; display: flex; flex-direction: column; }
 .card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; cursor: pointer; display: block; }
 .card h3 { margin: 14px 0 4px; font-size: 1.9rem; line-height: .9; }
+/* Desktop: cards are narrower than on a phone, the big title wraps. */
+@media (min-width: 600px) { .card h3 { font-size: 1.45rem; } }
 .card p { margin-bottom: 4px; }
 .card select { margin-top: 8px; }
 .grid .card > .row { margin-top: auto; padding-top: 16px; flex-wrap: nowrap; }
