@@ -51,11 +51,10 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - [x] Datos de prueba borrados y numeración de pedidos reiniciada en 1 (2026-10-17).
 - [x] Catálogo de prueba borrado (productos y categorías a mano; las 14 imágenes `test-*` con `clean-images`, 2026-10-18).
 - [ ] Rediseño de UI con la marca MADRE (2026-10-18): aplicado a la tienda (banda roja con logo, títulos Kirang Haerang, ilustraciones) y, por los tokens compartidos, al backoffice. Falta revisarlo con la dueña.
+- [x] Actions del deploy actualizadas a versiones con Node 24 (2026-10-18): checkout v7, setup-node v7, upload-pages-artifact v5, deploy-pages v5.
 
 ## Ideas / deuda conocida
 
 - **Subida de fotos HEIC** (deuda aceptada 2026-10-18): la dueña reporta que no le funciona desde su Mac. Verificado que producción tiene el conversor y que una HEIC real de iPhone (3992×2992) se convierte en ~4 s en Edge; no se pudo reproducir. Para retomarlo: averiguar navegador, mensaje que ve y conseguir la foto que falla. Mientras tanto, exportar las fotos como JPG antes de subirlas. Pista: el 2026-10-18 entre 21:29 y 21:32 UTC (después del deploy del arreglo) se subieron 4 JPG que nunca se guardaron en un producto; la subida en sí funcionó.
 - Sin protección anti-spam en el formulario de pedidos.
 - Sin opción retiro/envío (se usa el campo Notas).
-- `clean-images` lista una sola página de 1000 archivos (`shortcut:` en la función): paginar si el catálogo se acerca a ~330 productos.
-- Actions de los workflows en Node 20 (deprecado por GitHub): subir versiones cuando dejen de funcionar.

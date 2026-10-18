@@ -12,7 +12,7 @@ Deno.serve(async () => {
   const { data: products, error: e1 } = await db.from('products').select('images')
   // Without the product list every photo would look orphaned: never delete on a failed read.
   if (e1 || !products) return Response.json({ error: e1?.message ?? 'no products' }, { status: 500 })
-  // shortcut: one page of 1000 files (≈330 products at 3 photos), paginate if the catalog ever gets near that.
+  // One page of 1000 files is plenty: the catalog stays far below ~330 products.
   const { data: files, error: e2 } = await bucket.list('', { limit: 1000 })
   if (e2 || !files) return Response.json({ error: e2?.message ?? 'no files' }, { status: 500 })
 
