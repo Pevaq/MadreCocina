@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase, imageUrl, money } from './lib.js'
+import { supabase, imageUrl, money, longDate } from './lib.js'
 import { unitPrice, todayIn, minDeliveryDate } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
@@ -178,9 +178,6 @@ const whatsapp = (settings, text) =>
   settings?.whatsapp_on && settings.whatsapp_number
     ? `https://wa.me/${settings.whatsapp_number}${text ? `?text=${encodeURIComponent(text)}` : ''}`
     : null
-
-// "sábado, 25 de octubre"; noon so no timezone moves it to the day before.
-const longDate = (iso) => new Date(`${iso}T12:00`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
 
 // The order number is not shown: it would tell customers how many orders the store gets.
 function Done({ order, settings, onBack }) {

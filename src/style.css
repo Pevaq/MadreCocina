@@ -19,6 +19,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; overflow-x: clip; }
+a { color: var(--accent-ink); }
 .page { max-width: 960px; margin: 0 auto; padding: 24px 16px 112px; }
 .narrow { max-width: 400px; padding-top: 64px; }
 h1, h2, .card h3 { font-family: var(--title); font-weight: 400; color: var(--accent-ink); text-transform: uppercase; letter-spacing: .01em; }
@@ -96,7 +97,7 @@ button.icon.delete:hover { color: var(--danger); }
 
 .cart-bar { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); max-width: 928px; margin: 0 auto; min-height: 52px; font-size: 1.05em; box-shadow: 0 6px 20px rgb(44 44 45 / .25); }
 .sheet { position: fixed; inset: 0; background: rgb(44 44 45 / .4); display: flex; align-items: flex-end; justify-content: center; }
-.sheet form { background: var(--bg); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; }
+.sheet form, .sheet .panel { background: var(--bg); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; }
 .sheet .line { padding: 8px 0; border-bottom: 1px solid var(--line); margin: 0; flex-wrap: nowrap; }
 .sheet .line > span:first-child { flex: 1; }
 .sheet .total { padding: 12px 0 20px; }
@@ -123,3 +124,19 @@ button.icon.delete:hover { color: var(--danger); }
 .wa-float { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 8px; padding: 6px 16px 6px 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; box-shadow: 0 6px 20px rgb(44 44 45 / .25); }
 .wa-float.up { bottom: calc(84px + env(safe-area-inset-bottom)); }
 .wa-float img { width: 44px; height: 44px; padding: 6px; border-radius: 50%; background: var(--on-accent); }
+
+/* Backoffice orders: grouped by delivery day, each card opens its detail. */
+.day h3 { font-size: .9rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 24px 0 8px; }
+.day h3.late { color: var(--danger); }
+.card.order { display: grid; gap: 6px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; }
+.card.order .row { flex-wrap: nowrap; }
+.card.order .items { margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card.order .muted { margin: 0; }
+select.status { width: auto; min-height: 36px; padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: .9em; }
+select.status.paid { background: var(--soft); }
+select.status.fermenting, select.status.preparing { background: #f3dca8; border-color: #e6c77f; }
+select.status.ready { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; }
+.steps button { background: var(--card); color: var(--fg); border-color: var(--line); border-radius: 999px; min-height: 40px; padding: 8px 14px; font-weight: 500; }
+.steps button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.panel > button.danger { width: 100%; margin-top: 12px; }

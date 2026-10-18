@@ -7,3 +7,6 @@ export const imageUrl = (path) => supabase.storage.from('products').getPublicUrl
 // Always ARS: the store only sells in pesos.
 const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 export const money = (n) => fmt.format(n)
+
+// "sábado, 25 de octubre"; noon so no timezone moves it to the day before.
+export const longDate = (iso) => new Date(`${iso}T12:00`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })

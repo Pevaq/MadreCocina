@@ -47,7 +47,8 @@ create table orders (
   notes text,
   items jsonb not null,             -- [{product_id, name, variant, qty, price}] frozen at order time
   total numeric(12,2) not null,
-  status text not null default 'pending' check (status in ('pending', 'delivered')),
+  -- pending (Recibido) → paid → fermenting → preparing → ready → delivered; labels in src/admin/Orders.jsx
+  status text not null default 'pending' check (status in ('pending', 'paid', 'fermenting', 'preparing', 'ready', 'delivered')),
   amount_received numeric(12,2),
   delivered_at timestamptz
 );
@@ -75,10 +76,10 @@ end $$;
 revoke execute on function create_order(jsonb) from public, anon, authenticated;
 grant execute on function create_order(jsonb) to service_role;
 
--- Deleting a pending order = cancelling it: its stock goes back. Delivered orders keep theirs.
+-- Deleting an undelivered order = cancelling it: its stock goes back. Delivered orders keep theirs.
 create function restock_cancelled_order() returns trigger language plpgsql set search_path = public as $$
 begin
-  if old.status = 'pending' then
+  if old.status <> 'delivered' then
     update products p set stock = p.stock + x.qty
     from (
       select (i->>'product_id')::bigint as id, sum((i->>'qty')::int) as qty
