@@ -72,8 +72,8 @@ export default function Shop() {
   )
 }
 
-// Stock is per product: all its variants and cart lines share it.
-function ProductCard({ product, onAdd, inCart }) {
+// Stock is per product: all its variants and cart lines share it. Also used as the backoffice preview.
+export function ProductCard({ product, onAdd, inCart }) {
   const variants = product.variants.filter((v) => v.active)
   const [variantId, setVariantId] = useState(variants[0]?.id)
   const [img, setImg] = useState(0)

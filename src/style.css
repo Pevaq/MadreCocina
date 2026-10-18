@@ -173,6 +173,14 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
 /* Product editor: one card per block, narrow column, actions pinned to the bottom. */
 .box > h3:first-child { margin-top: 0; }
 .editor { max-width: 640px; }
+/* Preview: after the blocks on a phone; a sticky column beside the form on wide screens. */
+.preview .grid { grid-template-columns: minmax(0, 320px); justify-content: center; }
+.preview .item h3 { margin: 0; font-size: 1.8rem; }
+@media (min-width: 960px) {
+  .editor { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 24px; align-items: start; }
+  .editor > * { grid-column: 1; }
+  .editor > .preview { grid-column: 2; grid-row: 1 / span 20; position: sticky; top: 16px; }
+}
 .editor > .row:first-child { margin-bottom: 20px; }
 .box { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 16px; margin: 0 0 16px; min-width: 0; }
 .box h3 { margin: 0 0 12px; font-size: 1.05rem; }

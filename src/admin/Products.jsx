@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, imageUrl, money } from '../lib.js'
 import { useSortable } from './sortable.js'
 import TrashIcon from './TrashIcon.jsx'
+import { ProductCard } from '../Shop.jsx'
 
 // Asks first; returns an error message, '' if it was deleted, or null if she cancelled.
 async function deleteProduct(product, images = product.images) {
@@ -79,6 +80,11 @@ function Editor({ product, categories, onClose }) {
   const [busy, setBusy] = useState(false)
   const set = (k, v) => setP({ ...p, [k]: v })
   const setVariant = (i, k, v) => set('variants', p.variants.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
+  // The shop card with what's typed so far: numbers parsed, variants given temporary ids.
+  const preview = {
+    ...p, name: p.name || 'Nombre del producto', price: Number(p.price) || 0, lead_days: Number(p.lead_days) || 0, stock: Number(p.stock) || 0,
+    variants: p.variants.map((v, i) => ({ ...v, id: v.id ?? -1 - i, name: v.name || 'Variante', price: v.price === '' || v.price == null ? null : Number(v.price) })),
+  }
   // Photos reorder by dragging; the first one is the cover in the shop.
   const photos = useSortable(p.images.map((id) => ({ id })), (list) => setP((cur) => ({ ...cur, images: list.map((x) => x.id) })))
 
@@ -195,6 +201,13 @@ function Editor({ product, categories, onClose }) {
           </div>
         ))}
         <button type="button" className="ghost" onClick={() => set('variants', [...p.variants, { name: '', price: '', active: true }])}>+ Variante</button>
+      </section>
+
+      <section className="box preview">
+        <h3>Vista previa</h3>
+        <p className="muted">Así se ve en la tienda.</p>
+        {/* Remounted when photos change so the card's photo index never points past the end. */}
+        <div className="grid"><ProductCard key={p.images.join()} product={preview} onAdd={() => {}} inCart={0} /></div>
       </section>
 
       {error && <p className="error">{error}</p>}
