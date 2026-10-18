@@ -24,7 +24,7 @@ export default function Orders({ status }) {
   }
 
   async function remove(order) {
-    if (!confirm(`¿Borrar el pedido #${order.id}? No se puede deshacer.`)) return
+    if (!confirm(`¿Borrar el pedido #${order.id}? No se puede deshacer.${order.status === 'pending' ? ' Su stock vuelve a la tienda.' : ''}`)) return
     const { error } = await supabase.from('orders').delete().eq('id', order.id)
     if (error) return setError(error.message)
     load()

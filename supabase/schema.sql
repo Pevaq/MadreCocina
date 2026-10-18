@@ -24,7 +24,8 @@ create table products (
   lead_days int not null default 1 check (lead_days >= 0),
   images text[] not null default '{}' check (cardinality(images) <= 3),
   active boolean not null default true,
-  sort int not null default 0
+  sort int not null default 0,
+  stock int not null default 0 check (stock >= 0)  -- shared by all variants; orders take it, cancelling gives it back
 );
 
 create table variants (
@@ -42,12 +43,50 @@ create table orders (
   phone text not null,
   delivery_date date not null,
   notes text,
-  items jsonb not null,             -- [{name, variant, qty, price}] frozen at order time
+  items jsonb not null,             -- [{product_id, name, variant, qty, price}] frozen at order time
   total numeric(12,2) not null,
   status text not null default 'pending' check (status in ('pending', 'delivered')),
   amount_received numeric(12,2),
   delivered_at timestamptz
 );
+
+-- Takes the stock and saves the order in one transaction, so two customers can't both get the last unit.
+-- Only the place-order function (service role) calls it. Raises 'out_of_stock:<product id>'.
+create function create_order(o jsonb) returns bigint language plpgsql set search_path = public as $$
+declare
+  line record;
+  new_id bigint;
+begin
+  -- Ordered by id so concurrent orders lock products in the same order (no deadlocks).
+  for line in
+    select (x->>'product_id')::bigint as id, sum((x->>'qty')::int) as qty
+    from jsonb_array_elements(o->'items') x group by 1 order by 1
+  loop
+    update products set stock = stock - line.qty where id = line.id and stock >= line.qty;
+    if not found then raise exception 'out_of_stock:%', line.id; end if;
+  end loop;
+  insert into orders (customer_name, phone, notes, delivery_date, items, total)
+  values (o->>'customer_name', o->>'phone', o->>'notes', (o->>'delivery_date')::date, o->'items', (o->>'total')::numeric)
+  returning id into new_id;
+  return new_id;
+end $$;
+revoke execute on function create_order(jsonb) from public, anon, authenticated;
+grant execute on function create_order(jsonb) to service_role;
+
+-- Deleting a pending order = cancelling it: its stock goes back. Delivered orders keep theirs.
+create function restock_cancelled_order() returns trigger language plpgsql set search_path = public as $$
+begin
+  if old.status = 'pending' then
+    update products p set stock = p.stock + x.qty
+    from (
+      select (i->>'product_id')::bigint as id, sum((i->>'qty')::int) as qty
+      from jsonb_array_elements(old.items) i where i ? 'product_id' group by 1
+    ) x
+    where p.id = x.id;
+  end if;
+  return old;
+end $$;
+create trigger restock after delete on orders for each row execute function restock_cancelled_order();
 
 -- Access: the public reads the active catalog; only the logged-in admin touches anything else.
 -- Orders are inserted by the place-order function (service role), never directly by the public.

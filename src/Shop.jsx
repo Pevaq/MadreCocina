@@ -42,7 +42,9 @@ export default function Shop() {
         ))}
       </nav>
       <div className="grid">
-        {shown.map((p) => <ProductCard key={p.id} product={p} onAdd={add} />)}
+        {shown.map((p) => (
+          <ProductCard key={p.id} product={p} onAdd={add} inCart={cart.reduce((n, l) => n + (l.product.id === p.id ? l.qty : 0), 0)} />
+        ))}
       </div>
       {count > 0 && !checkout && (
         <button className="cart-bar" onClick={() => setCheckout(true)}>Ver pedido ({count})</button>
@@ -59,7 +61,8 @@ export default function Shop() {
   )
 }
 
-function ProductCard({ product, onAdd }) {
+// Stock is per product: all its variants and cart lines share it.
+function ProductCard({ product, onAdd, inCart }) {
   const variants = product.variants.filter((v) => v.active)
   const [variantId, setVariantId] = useState(variants[0]?.id)
   const [img, setImg] = useState(0)
@@ -67,6 +70,7 @@ function ProductCard({ product, onAdd }) {
   const variant = variants.find((v) => v.id === variantId)
   const n = product.images.length
   const step = (d) => setImg((img + d + n) % n)
+  const left = Math.min(99, product.stock - inCart)
 
   return (
     <article className="card">
@@ -87,6 +91,9 @@ function ProductCard({ product, onAdd }) {
       <h3>{product.name}</h3>
       {product.description && <p className="muted">{product.description}</p>}
       <p className="muted">Pedir con {product.lead_days} día(s) de anticipación</p>
+      {product.stock <= 0
+        ? <p className="badge">Agotado</p>
+        : product.stock <= 5 && <p className="badge">{product.stock === 1 ? 'Queda 1' : `Quedan ${product.stock}`}</p>}
       {variants.length > 0 && (
         <select value={variantId} onChange={(e) => setVariantId(Number(e.target.value))} aria-label="Variante">
           {variants.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -94,8 +101,14 @@ function ProductCard({ product, onAdd }) {
       )}
       <div className="row">
         <strong>{money(unitPrice(product, variant))}</strong>
-        <input type="number" min="1" max="99" value={qty} onChange={(e) => setQty(Math.max(1, Math.min(99, Number(e.target.value) || 1)))} aria-label="Cantidad" />
-        <button onClick={() => { onAdd(product, variant, qty); setQty(1) }}>Agregar</button>
+        {left > 0 ? (
+          <>
+            <input type="number" min="1" max={left} value={Math.min(qty, left)} onChange={(e) => setQty(Math.max(1, Math.min(left, Number(e.target.value) || 1)))} aria-label="Cantidad" />
+            <button onClick={() => { onAdd(product, variant, Math.min(qty, left)); setQty(1) }}>Agregar</button>
+          </>
+        ) : (
+          <button disabled>{product.stock > 0 ? 'Ya en tu pedido' : 'Agotado'}</button>
+        )}
       </div>
     </article>
   )

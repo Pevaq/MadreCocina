@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, imageUrl, money } from '../lib.js'
 import { useSortable } from './sortable.js'
 
-const EMPTY = { name: '', description: '', price: '', lead_days: 1, category_id: null, images: [], active: true, variants: [] }
+const EMPTY = { name: '', description: '', price: '', lead_days: 1, stock: 0, category_id: null, images: [], active: true, variants: [] }
 
 export default function Products() {
   const [products, setProducts] = useState([])
@@ -28,6 +28,7 @@ export default function Products() {
           <button {...handle(p.id)} />
           {p.images[0] && <img className="thumb" src={imageUrl(p.images[0])} alt="" />}
           <span>{p.name}{!p.active && <em className="muted"> (oculto)</em>}</span>
+          <span className={p.stock > 0 ? 'muted' : 'error'}>{p.stock > 0 ? `Stock ${p.stock}` : 'Agotado'}</span>
           <span>{money(p.price)}</span>
         </article>
       ))}
@@ -70,7 +71,9 @@ function Editor({ product, categories, onClose }) {
     e.preventDefault()
     setBusy(true)
     const { variants, id, ...fields } = p
-    const row = { ...fields, price: Number(fields.price), lead_days: Number(fields.lead_days), category_id: fields.category_id || null }
+    const row = { ...fields, price: Number(fields.price), lead_days: Number(fields.lead_days), stock: Number(fields.stock), category_id: fields.category_id || null }
+    // Untouched stock isn't sent: orders that came in while editing already took their units.
+    if (id && row.stock === product.stock) delete row.stock
     const { data, error } = id
       ? await supabase.from('products').update(row).eq('id', id).select().single()
       : await supabase.from('products').insert(row).select().single()
@@ -115,7 +118,9 @@ function Editor({ product, categories, onClose }) {
       <div className="row">
         <label>Precio<input required type="number" min="0" step="any" value={p.price} onChange={(e) => set('price', e.target.value)} /></label>
         <label>Días de anticipación<input required type="number" min="0" value={p.lead_days} onChange={(e) => set('lead_days', e.target.value)} /></label>
+        <label>Stock<input required type="number" min="0" step="1" value={p.stock} onChange={(e) => set('stock', e.target.value)} /></label>
       </div>
+      <p className="muted">Los pedidos descuentan stock solos; si borrás un pedido pendiente, vuelve. En 0 figura como Agotado.</p>
       <label className="check"><input type="checkbox" checked={p.active} onChange={(e) => set('active', e.target.checked)} /> Visible en la tienda</label>
 
       <h3>Fotos ({p.images.length}/3)</h3>

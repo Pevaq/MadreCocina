@@ -1,5 +1,5 @@
 // Receives an order from the shop, recomputes prices from the database (never trusts the client),
-// checks the delivery date, saves it and emails the owner if email notifications are on.
+// checks the delivery date, takes the stock and saves it (create_order, one transaction) and emails the owner if email notifications are on.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { unitPrice, todayIn, minDeliveryDate } from '../_shared/order.js'
 
@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const { data: products, error } = await db
     .from('products')
-    .select('id, name, price, lead_days, variants(id, name, price, active)')
+    .select('id, name, price, lead_days, stock, variants(id, name, price, active)')
     .eq('active', true)
     .in('id', items.map((i: any) => i.product_id))
   if (error) return json({ error: error.message }, 500)
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const product = products.find((p) => p.id === i.product_id)
     const variant = i.variant_id == null ? null : product?.variants.find((v) => v.id === i.variant_id && v.active)
     if (!product || (i.variant_id != null && !variant)) return json({ error: 'Un producto ya no está disponible.' }, 409)
-    lines.push({ name: product.name, variant: variant?.name ?? null, qty: i.qty, price: unitPrice(product, variant), lead: product.lead_days })
+    lines.push({ product_id: product.id, name: product.name, variant: variant?.name ?? null, qty: i.qty, price: unitPrice(product, variant), lead: product.lead_days })
   }
 
   const min = minDeliveryDate(todayIn(TZ), lines.map((l) => l.lead))
@@ -49,12 +49,16 @@ Deno.serve(async (req) => {
 
   const total = lines.reduce((sum, l) => sum + l.price * l.qty, 0)
   const orderItems = lines.map(({ lead, ...l }) => l)
-  const { data: order, error: insertError } = await db
-    .from('orders')
-    .insert({ customer_name, phone, notes, delivery_date, items: orderItems, total })
-    .select('id')
-    .single()
+  const { data: id, error: insertError } = await db.rpc('create_order', {
+    o: { customer_name, phone, notes, delivery_date, items: orderItems, total },
+  })
+  const outOfStock = insertError?.message.match(/out_of_stock:(\d+)/)
+  if (outOfStock) {
+    const product = products.find((p) => p.id === Number(outOfStock[1]))
+    return json({ error: `No hay stock suficiente de ${product?.name ?? 'un producto'} (quedan ${product?.stock ?? 0}).` }, 409)
+  }
   if (insertError) return json({ error: insertError.message }, 500)
+  const order = { id }
 
   // The order is already saved: an email failure is logged, not shown to the customer.
   const { data: settings } = await db.from('settings').select('store_name, email_on').single()
