@@ -92,7 +92,7 @@ function Editor({ product, categories, onClose }) {
     for (const file of [...files].slice(0, 3 - p.images.length)) {
       const blob = await compress(file).catch(() => null)
       if (!blob) { setError(`No se pudo leer "${file.name}". Probá con una foto JPG o PNG.`); continue }
-      // shortcut: images uploaded and then cancelled stay in storage, clean up by hand if space ever matters.
+      // Images uploaded and then cancelled stay in storage until the weekly clean-images run removes them.
       const path = `${crypto.randomUUID()}.jpg`
       const { error } = await supabase.storage.from('products').upload(path, blob, { contentType: 'image/jpeg' })
       if (error) setError(error.message)

@@ -12,3 +12,11 @@ jobs:
       - run: >
           curl -fsS "${{ vars.SUPABASE_URL }}/rest/v1/categories?select=id&limit=1"
           -H "apikey: ${{ vars.SUPABASE_ANON_KEY }}"
+
+  # Same schedule: delete product photos no product uses (see supabase/functions/clean-images).
+  clean-images:
+    runs-on: ubuntu-latest
+    steps:
+      - run: >
+          curl -fsS -X POST "${{ vars.SUPABASE_URL }}/functions/v1/clean-images"
+          -H "Authorization: Bearer ${{ vars.SUPABASE_ANON_KEY }}"

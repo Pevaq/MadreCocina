@@ -13,6 +13,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - **Función `place-order`** (`supabase/functions/place-order`): único punto de entrada de pedidos. Recalcula precios desde la DB, valida fecha mínima, inserta con service role y manda email por Resend.
 - **Lógica compartida** browser/Deno: `supabase/functions/_shared/order.js` (tests en `order.test.js`, `npm test`).
 - **Keep-alive**: `.github/workflows/keep-alive.yml` consulta la DB 2 veces por semana para que Supabase free no pause el proyecto.
+- **Limpieza de fotos** (2026-10-18): el mismo workflow llama a la función `clean-images` (`supabase/functions/clean-images`), que borra del bucket `products` las fotos que ningún producto usa y tienen más de 24 h (margen para un editor abierto sin guardar). Si falla la lectura de productos no borra nada. Llamarla es inofensivo (solo borra huérfanas), por eso alcanza con la anon key. Se puede correr a mano desde GitHub → Actions → Keep Supabase awake → Run workflow.
 
 ## Decisiones (y por qué)
 
@@ -34,7 +35,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 ## Operación
 
 - Deploy web: `git push` a `main`.
-- Deploy función: `npx supabase functions deploy place-order --no-verify-jwt` (si cambia `supabase/functions/`).
+- Deploy funciones (si cambia `supabase/functions/`): `npx supabase functions deploy place-order --no-verify-jwt` y `npx supabase functions deploy clean-images` (esta con verificación de JWT: la llama el workflow con la anon key).
 - Consultas a la DB desde la terminal: `npx supabase db query --linked "<sql>"` (una sentencia por llamada: con varias solo devuelve la última). SQL largo o con acentos: guardarlo en un archivo dentro de `supabase/.temp/` y usar `-f <ruta>` (pasado como argumento falla en Windows sin mostrar error). Storage: `npx supabase storage rm ss:///products/<archivo> --experimental --linked --yes` y `storage cp ./<ruta-relativa> ss:///products/<archivo> --experimental --linked` (con ruta absoluta `C:/...` falla: toma `C:` como protocolo).
 - Cambios de esquema: escribir el SQL nuevo y aplicarlo en Supabase (SQL Editor o MCP); mantener `supabase/schema.sql` como fuente de verdad.
 - Secretos de la función (`RESEND_API_KEY`, `NOTIFY_EMAIL`): en Supabase → Edge Functions → Secrets. Nunca en el repo ni en el chat.
@@ -48,13 +49,13 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
   - Dominio registrado en NIC Argentina, DNS en Cloudflare (plan Free): A `@` → 185.199.108–111.153, CNAME `www` → `pevaq.github.io`, **sin proxy** (nube gris: si se activa el proxy, GitHub no puede renovar el certificado).
   - El dominio está configurado en Settings → Pages (no hay archivo CNAME: el deploy es por Actions).
 - [x] Datos de prueba borrados y numeración de pedidos reiniciada en 1 (2026-10-17).
-- [ ] **Catálogo de prueba cargado en producción** (2026-10-17) para revisar la UI: 8 productos (Focaccia, Pan de masa madre, Chipá, Cookies, Alfajores de maicena, Torta de zanahoria, Cheesecake, Budín de limón), categorías Cookies/Tortas/Budines (Pan ya existía) e imágenes `test-*.svg` en Storage. Borrar antes de lanzar: productos y categorías desde el backoffice o por SQL, y las imágenes con `storage rm` (todas empiezan con `test-`).
+- [x] Catálogo de prueba borrado (productos y categorías a mano; las 14 imágenes `test-*` con `clean-images`, 2026-10-18).
 - [ ] Rediseño de UI con la marca MADRE (2026-10-18): aplicado a la tienda (banda roja con logo, títulos Kirang Haerang, ilustraciones) y, por los tokens compartidos, al backoffice. Falta revisarlo con la dueña.
 
 ## Ideas / deuda conocida
 
-- **Subida de fotos HEIC** (deuda aceptada 2026-10-18): la dueña reporta que no le funciona desde su Mac. Verificado que producción tiene el conversor y que una HEIC real de iPhone (3992×2992) se convierte en ~4 s en Edge; no se pudo reproducir. Para retomarlo: averiguar navegador, mensaje que ve y conseguir la foto que falla. Mientras tanto, exportar las fotos como JPG antes de subirlas.
-- Fotos subidas y canceladas en el editor quedan huérfanas en Storage (`shortcut:` en `src/admin/Products.jsx`).
+- **Subida de fotos HEIC** (deuda aceptada 2026-10-18): la dueña reporta que no le funciona desde su Mac. Verificado que producción tiene el conversor y que una HEIC real de iPhone (3992×2992) se convierte en ~4 s en Edge; no se pudo reproducir. Para retomarlo: averiguar navegador, mensaje que ve y conseguir la foto que falla. Mientras tanto, exportar las fotos como JPG antes de subirlas. Pista: el 2026-10-18 entre 21:29 y 21:32 UTC (después del deploy del arreglo) se subieron 4 JPG que nunca se guardaron en un producto; la subida en sí funcionó.
 - Sin protección anti-spam en el formulario de pedidos.
 - Sin opción retiro/envío (se usa el campo Notas).
+- `clean-images` lista una sola página de 1000 archivos (`shortcut:` en la función): paginar si el catálogo se acerca a ~330 productos.
 - Actions de los workflows en Node 20 (deprecado por GitHub): subir versiones cuando dejen de funcionar.
