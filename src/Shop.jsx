@@ -102,9 +102,7 @@ function ProductCard({ product, onAdd, inCart }) {
       <h3>{product.name}</h3>
       {product.description && <p className="muted">{product.description}</p>}
       <p className="muted">Pedir con {product.lead_days} día(s) de anticipación</p>
-      {product.stock <= 0
-        ? <p className="badge">Agotado</p>
-        : <p className="badge">{product.stock === 1 ? '1 disponible' : `${product.stock} disponibles`}</p>}
+      {product.stock <= 0 && <p className="badge">Agotado</p>}
       {variants.length > 0 && (
         <select value={variantId} onChange={(e) => setVariantId(Number(e.target.value))} aria-label="Variante">
           {variants.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
