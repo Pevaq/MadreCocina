@@ -82,41 +82,44 @@ function ProductCard({ product, onAdd, inCart }) {
   const n = product.images.length
   const step = (d) => setImg((img + d + n) % n)
   const left = Math.min(99, product.stock - inCart)
+  const q = Math.min(qty, left)
 
   return (
-    <article className="card">
-      {product.images.length > 0 && (
-        <div className="gallery">
-          <img src={imageUrl(product.images[img])} alt={product.name} onClick={() => step(1)} />
-          {product.images.length > 1 && (
-            <>
-              <button type="button" className="prev" onClick={() => step(-1)} aria-label="Foto anterior">‹</button>
-              <button type="button" className="next" onClick={() => step(1)} aria-label="Foto siguiente">›</button>
-            </>
-          )}
-        </div>
-      )}
-      {product.images.length > 1 && (
-        <div className="dots">{product.images.map((_, i) => <span key={i} className={i === img ? 'on' : ''} />)}</div>
-      )}
-      <h3>{product.name}</h3>
-      {product.description && <p className="muted">{product.description}</p>}
-      <p className="muted">Pedir con {product.lead_days} día(s) de anticipación</p>
-      {product.stock <= 0 && <p className="badge">Agotado</p>}
-      {variants.length > 0 && (
-        <select value={variantId} onChange={(e) => setVariantId(Number(e.target.value))} aria-label="Variante">
-          {variants.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-        </select>
-      )}
-      <div className="row">
+    <article className="card item">
+      <div className="gallery">
+        {n > 0 && <img src={imageUrl(product.images[img])} alt={product.name} onClick={() => step(1)} />}
+        {product.stock <= 0 && <span className="badge">Agotado</span>}
+        {n > 1 && (
+          <>
+            <button type="button" className="prev" onClick={() => step(-1)} aria-label="Foto anterior">‹</button>
+            <button type="button" className="next" onClick={() => step(1)} aria-label="Foto siguiente">›</button>
+            <div className="dots">{product.images.map((_, i) => <span key={i} className={i === img ? 'on' : ''} />)}</div>
+          </>
+        )}
+      </div>
+      <div className="body">
+        <h3>{product.name}</h3>
+        {product.description && <p>{product.description}</p>}
+        {product.lead_days > 0 && <p className="lead">Pedir con {product.lead_days === 1 ? "1 día" : `${product.lead_days} días`} de anticipación</p>}
+        {variants.length > 0 && (
+          <select value={variantId} onChange={(e) => setVariantId(Number(e.target.value))} aria-label="Variante">
+            {variants.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+          </select>
+        )}
+      </div>
+      <div className="buy">
         <strong>{money(unitPrice(product, variant))}</strong>
         {left > 0 ? (
           <>
-            <input type="number" min="1" max={left} value={Math.min(qty, left)} onChange={(e) => setQty(Math.max(1, Math.min(left, Number(e.target.value) || 1)))} aria-label="Cantidad" />
-            <button onClick={() => { onAdd(product, variant, Math.min(qty, left)); setQty(1) }}>Agregar</button>
+            <div className="qty">
+              <button type="button" onClick={() => setQty(Math.max(1, q - 1))} disabled={q <= 1} aria-label="Uno menos">−</button>
+              <span aria-label="Cantidad">{q}</span>
+              <button type="button" onClick={() => setQty(Math.min(left, q + 1))} disabled={q >= left} aria-label="Uno más">+</button>
+            </div>
+            <button className="add" onClick={() => { onAdd(product, variant, q); setQty(1) }}>Agregar</button>
           </>
         ) : (
-          <button disabled>{product.stock > 0 ? 'Ya en tu pedido' : 'Agotado'}</button>
+          <button className="add" disabled>{product.stock > 0 ? 'Ya en tu pedido' : 'Agotado'}</button>
         )}
       </div>
     </article>
