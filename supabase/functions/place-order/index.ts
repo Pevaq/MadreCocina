@@ -60,9 +60,12 @@ Deno.serve(async (req) => {
 
   const total = lines.reduce((sum, l) => sum + l.price * l.qty, 0)
   const orderItems = lines.map(({ lead, ...l }) => l)
+  const ip = req.headers.get('cf-connecting-ip') // set by Supabase's Cloudflare, the client can't fake it
   const { data: id, error: insertError } = await db.rpc('create_order', {
-    o: { customer_name, phone, notes, delivery_date, items: orderItems, total },
+    o: { customer_name, phone, notes, delivery_date, items: orderItems, total, ip },
   })
+  if (insertError?.message.includes('too_many_orders'))
+    return json({ error: 'Recibimos muchos pedidos desde tu conexión en la última hora. Escribinos por WhatsApp.' }, 429)
   const outOfStock = insertError?.message.match(/out_of_stock:(\d+)/)
   if (outOfStock) {
     const product = products.find((p) => p.id === Number(outOfStock[1]))

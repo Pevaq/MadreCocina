@@ -52,7 +52,8 @@ create table orders (
   status text not null default 'pending' check (status in ('pending', 'paid', 'preparing', 'ready', 'delivered')),
   wholesale boolean not null default false,  -- "Precio mayorista": the admin types what was actually charged
   amount_received numeric(12,2),    -- what was charged: the total, or the typed amount for wholesale
-  delivered_at timestamptz
+  delivered_at timestamptz,
+  ip text                           -- customer's IP (from place-order), only for the per-IP order limit
 );
 
 -- Takes the stock and saves the order in one transaction, so two customers can't both get the last unit.
@@ -62,6 +63,14 @@ declare
   line record;
   new_id bigint;
 begin
+  -- Max 5 orders per IP per hour (anti-spam; Turnstile stops bots, this stops a person mashing the button).
+  -- The lock makes concurrent orders from one IP count one at a time. Deleted orders don't count.
+  if o->>'ip' is not null then
+    perform pg_advisory_xact_lock(hashtext(o->>'ip'));
+    if (select count(*) from orders where ip = o->>'ip' and created_at > now() - interval '1 hour') >= 5 then
+      raise exception 'too_many_orders';
+    end if;
+  end if;
   -- Ordered by id so concurrent orders lock products in the same order (no deadlocks).
   for line in
     select (x->>'product_id')::bigint as id, sum((x->>'qty')::int) as qty
@@ -70,8 +79,8 @@ begin
     update products set stock = stock - line.qty where id = line.id and stock >= line.qty;
     if not found then raise exception 'out_of_stock:%', line.id; end if;
   end loop;
-  insert into orders (customer_name, phone, notes, delivery_date, items, total)
-  values (o->>'customer_name', o->>'phone', o->>'notes', (o->>'delivery_date')::date, o->'items', (o->>'total')::numeric)
+  insert into orders (customer_name, phone, notes, delivery_date, items, total, ip)
+  values (o->>'customer_name', o->>'phone', o->>'notes', (o->>'delivery_date')::date, o->'items', (o->>'total')::numeric, o->>'ip')
   returning id into new_id;
   return new_id;
 end $$;
