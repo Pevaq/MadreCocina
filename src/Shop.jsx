@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase, imageUrl, money, longDate, hideSplash, useDialog, useMedia, TURNSTILE_SITE_KEY, loadTurnstile } from './lib.js'
-import { unitPrice, todayIn, minDeliveryDate } from '../supabase/functions/_shared/order.js'
+import { unitPrice, todayIn, minDeliveryDate, maxDeliveryDate, checkContact } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
   const [settings, setSettings] = useState(null)
@@ -208,10 +208,13 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
   async function submit(e) {
     e.preventDefault()
     if (step === 'order') return setStep('contact')
+    // Same check as place-order: catch typos here instead of spending the captcha token.
+    const { contact, error: invalid } = checkContact(form)
+    if (invalid) return setError(invalid)
     setSending(true)
     setError('')
     const items = cart.map((l) => ({ product_id: l.product.id, variant_id: l.variant?.id ?? null, qty: l.qty }))
-    const { data, error } = await supabase.functions.invoke('place-order', { body: { ...form, delivery_date: date, items, captcha } })
+    const { data, error } = await supabase.functions.invoke('place-order', { body: { ...form, ...contact, delivery_date: date, items, captcha } })
     setSending(false)
     if (error) {
       if (captchaId.current != null) { window.turnstile.reset(captchaId.current); setCaptcha('') }
@@ -220,7 +223,7 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
       const body = await error.context?.json?.().catch(() => null)
       return setError(body?.error ?? 'No se pudo enviar el pedido. Probá de nuevo.')
     }
-    onDone({ ...data, ...form, delivery_date: date })
+    onDone({ ...data, ...form, ...contact, delivery_date: date })
   }
 
   const body = (
@@ -239,7 +242,7 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
             </div>
           ))}
           <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
-          <label>Fecha de entrega<input required type="date" min={min} value={date} onChange={set('delivery_date')} /></label>
+          <label>Fecha de entrega<input required type="date" min={min} max={maxDeliveryDate(todayIn())} value={date} onChange={set('delivery_date')} /></label>
           <button disabled={cart.length === 0}>Continuar</button>
         </>
       ) : (
@@ -248,9 +251,9 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
             <span>{count === 1 ? '1 producto' : `${count} productos`} · <strong>{money(total)}</strong><br />Entrega el {longDate(date)}</span>
             <button type="button" className="ghost" onClick={() => { edited.current = true; setStep('order') }}>Editar</button>
           </div>
-          <label>Nombre<input required autoFocus autoComplete="name" value={form.customer_name} onChange={set('customer_name')} /></label>
-          <label>Teléfono<input required type="tel" autoComplete="tel" value={form.phone} onChange={set('phone')} /></label>
-          <label>Notas (dirección, horario, etc.)<textarea value={form.notes} onChange={set('notes')} /></label>
+          <label>Nombre<input required autoFocus autoComplete="name" minLength={2} maxLength={60} value={form.customer_name} onChange={set('customer_name')} /></label>
+          <label>Teléfono<input required type="tel" autoComplete="tel" inputMode="tel" maxLength={25} placeholder="Ej.: 11 2345 6789" value={form.phone} onChange={set('phone')} /></label>
+          <label>Notas (dirección, horario, etc.)<textarea maxLength={500} value={form.notes} onChange={set('notes')} /></label>
           <div className="trap" aria-hidden="true">
             <label>Sitio web<input tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} /></label>
           </div>

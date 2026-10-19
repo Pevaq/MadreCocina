@@ -1,7 +1,7 @@
 // Receives an order from the shop, recomputes prices from the database (never trusts the client),
 // checks the delivery date, takes the stock and saves it (create_order, one transaction) and emails the owner if email notifications are on.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { unitPrice, todayIn, minDeliveryDate, STORE_TZ } from '../_shared/order.js'
+import { unitPrice, todayIn, minDeliveryDate, maxDeliveryDate, isDate, checkContact, STORE_TZ } from '../_shared/order.js'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -19,13 +19,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
   const body = await req.json().catch(() => null)
-  const customer_name = text(body?.customer_name, 100)
-  const phone = text(body?.phone, 30)
-  const notes = text(body?.notes, 1000)
+  const { contact, error: invalid } = checkContact(body ?? {})
+  if (invalid) return json({ error: invalid }, 400)
+  const { customer_name, phone, notes } = contact
   const delivery_date = text(body?.delivery_date, 10)
   const items = Array.isArray(body?.items) ? body.items : []
-  if (!customer_name || !phone) return json({ error: 'Nombre y teléfono son obligatorios.' }, 400)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(delivery_date)) return json({ error: 'Fecha inválida.' }, 400)
+  if (!isDate(delivery_date)) return json({ error: 'Fecha inválida.' }, 400)
   if (items.length < 1 || items.length > 50) return json({ error: 'El pedido está vacío.' }, 400)
   if (!items.every((i: any) => Number.isInteger(i?.qty) && i.qty >= 1 && i.qty <= 99))
     return json({ error: 'Cantidad inválida.' }, 400)
@@ -60,6 +59,7 @@ Deno.serve(async (req) => {
 
   const min = minDeliveryDate(todayIn(TZ), lines.map((l) => l.lead))
   if (delivery_date < min) return json({ error: `La fecha mínima de entrega es ${min}.` }, 400)
+  if (delivery_date > maxDeliveryDate(todayIn(TZ))) return json({ error: 'Se puede pedir hasta con 3 meses de anticipación.' }, 400)
 
   const total = lines.reduce((sum, l) => sum + l.price * l.qty, 0)
   const orderItems = lines.map(({ lead, ...l }) => l)
