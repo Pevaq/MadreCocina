@@ -66,10 +66,11 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - [ ] Rediseño de UI con la marca MADRE (2026-10-18): aplicado a la tienda (banda roja con logo, títulos Kirang Haerang, ilustraciones) y, por los tokens compartidos, al backoffice. Falta revisarlo con la dueña.
 - [x] Actions del deploy actualizadas a versiones con Node 24 (2026-10-18): checkout v7, setup-node v7, upload-pages-artifact v5, deploy-pages v5.
 - [x] Pedidos de prueba borrados y numeración de pedidos reiniciada en 1 (2026-10-19, `alter sequence orders_id_seq restart with 1`; solo con la tabla `orders` vacía).
+- [x] Pedidos de prueba de anti-bots borrados (2026-10-19): queda solo el pedido 1 (real) y la numeración sigue en 2 (`select setval('orders_id_seq', (select max(id) from orders))`).
 
 ## Ideas / deuda conocida
 
 - **Subida de fotos HEIC** (deuda aceptada 2026-10-18): la dueña reporta que no le funciona desde su Mac. Verificado que producción tiene el conversor y que una HEIC real de iPhone (3992×2992) se convierte en ~4 s en Edge; no se pudo reproducir. Para retomarlo: averiguar navegador, mensaje que ve y conseguir la foto que falla. Mientras tanto, exportar las fotos como JPG antes de subirlas. Pista: el 2026-10-18 entre 21:29 y 21:32 UTC (después del deploy del arreglo) se subieron 4 JPG que nunca se guardaron en un producto; la subida en sí funcionó.
-- [ ] Turnstile: código listo, falta crear el sitio en Cloudflare y cargar `TURNSTILE_SITE_KEY` (variable del repo) y `TURNSTILE_SECRET` (Secrets de Supabase). Hasta entonces solo protege el campo trampa.
+- [x] Turnstile activo (2026-10-19): `TURNSTILE_SITE_KEY` como variable del entorno `github-pages` del repo y `TURNSTILE_SECRET` en Secrets de Supabase. Probado con un pedido real.
 - Sin límite de pedidos por IP (si Turnstile no alcanza).
 - Sin opción retiro/envío (se usa el campo Notas).
