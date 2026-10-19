@@ -20,6 +20,7 @@ export default function Settings() {
         <h3>Tienda</h3>
         <label>Nombre de la tienda<input required value={s.store_name} onChange={(e) => setS({ ...s, store_name: e.target.value })} /></label>
         <label className="check"><input type="checkbox" checked={s.email_on} onChange={(e) => setS({ ...s, email_on: e.target.checked })} /> Recibir email por cada pedido</label>
+        <label className="check"><input type="checkbox" checked={s.show_categories} onChange={(e) => setS({ ...s, show_categories: e.target.checked })} /> Mostrar categorías en la tienda (los botones Todo, Tortas, etc.)</label>
       </section>
       <section className="box">
         <h3>WhatsApp</h3>

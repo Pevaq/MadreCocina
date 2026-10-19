@@ -43,12 +43,14 @@ export default function Shop() {
     <div className={`shop${side ? ' with-side' : ''}`}>
       <div className="page">
         <header className="brand"><h1><img src="logo.svg" alt={settings?.store_name ?? 'Madre'} width="820" height="444" /></h1></header>
-        <nav className="chips">
-          <button className={!category ? 'on' : ''} onClick={() => setCategory(null)}>Todo</button>
-          {categories.map((c) => (
-            <button key={c.id} className={category === c.id ? 'on' : ''} onClick={() => setCategory(c.id)}>{c.name}</button>
-          ))}
-        </nav>
+        {settings?.show_categories && (
+          <nav className="chips">
+            <button className={!category ? 'on' : ''} onClick={() => setCategory(null)}>Todo</button>
+            {categories.map((c) => (
+              <button key={c.id} className={category === c.id ? 'on' : ''} onClick={() => setCategory(c.id)}>{c.name}</button>
+            ))}
+          </nav>
+        )}
         <div className="grid">
           {shown.map((p) => (
             <ProductCard key={p.id} product={p} onAdd={add} inCart={cart.reduce((n, l) => n + (l.product.id === p.id ? l.qty : 0), 0)} />

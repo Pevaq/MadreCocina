@@ -7,7 +7,8 @@ create table settings (
   whatsapp_on boolean not null default true,
   email_on boolean not null default true,
   transfer_alias text,              -- shown to the customer after ordering, to pay by bank transfer
-  transfer_holder text              -- account holder (and bank) so the customer can check before sending
+  transfer_holder text,             -- account holder (and bank) so the customer can check before sending
+  show_categories boolean not null default true  -- category pills in the shop; off while the catalog is small
 );
 insert into settings default values;
 
