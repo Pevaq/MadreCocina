@@ -13,6 +13,8 @@ const json = (body: unknown, status = 200) =>
 const TZ = Deno.env.get('STORE_TZ') ?? 'America/Argentina/Buenos_Aires'
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
+const fail = (e: unknown) => (console.error(e), json({ error: 'No se pudo enviar el pedido. Probá de nuevo.' }, 500))
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
@@ -45,7 +47,8 @@ Deno.serve(async (req) => {
     .select('id, name, price, lead_days, stock, variants(id, name, price, active)')
     .eq('active', true)
     .in('id', items.map((i: any) => i.product_id))
-  if (error) return json({ error: error.message }, 500)
+  // DB errors go to the logs, not to the customer.
+  if (error) return fail(error)
 
   const lines = []
   for (const i of items) {
@@ -69,9 +72,9 @@ Deno.serve(async (req) => {
   const outOfStock = insertError?.message.match(/out_of_stock:(\d+)/)
   if (outOfStock) {
     const product = products.find((p) => p.id === Number(outOfStock[1]))
-    return json({ error: `No hay stock suficiente de ${product?.name ?? 'un producto'} (quedan ${product?.stock ?? 0}).` }, 409)
+    return json({ error: `No hay stock suficiente de ${product?.name ?? 'un producto'}. Probá con menos unidades.` }, 409)
   }
-  if (insertError) return json({ error: insertError.message }, 500)
+  if (insertError) return fail(insertError)
   const order = { id }
 
   // The order is already saved: an email failure is logged, not shown to the customer.
@@ -91,5 +94,6 @@ Deno.serve(async (req) => {
     if (!(res instanceof Response) || !res.ok) console.error('email failed', res instanceof Response ? await res.text() : res)
   }
 
-  return json({ id: order.id, total, items: orderItems })
+  // No id: a sequential order number would tell anyone how many orders the store gets.
+  return json({ total, items: orderItems })
 })
