@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { supabase, imageUrl, money, longDate, hideSplash, useEscape, useMedia } from './lib.js'
+import { useEffect, useRef, useState } from 'react'
+import { supabase, imageUrl, money, longDate, hideSplash, useEscape, useMedia, TURNSTILE_SITE_KEY, loadTurnstile } from './lib.js'
 import { unitPrice, todayIn, minDeliveryDate } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
@@ -136,7 +136,8 @@ export function ProductCard({ product, onAdd, inCart }) {
 // Two steps so it fits without scrolling: the order and its date, then the contact details.
 function Checkout({ cart, setCart, onClose, onDone, inline }) {
   const min = minDeliveryDate(todayIn(), cart.map((l) => l.product.lead_days))
-  const [form, setForm] = useState({ customer_name: '', phone: '', delivery_date: min, notes: '' })
+  // website = honeypot: hidden from people, bots fill it and place-order rejects the order.
+  const [form, setForm] = useState({ customer_name: '', phone: '', delivery_date: min, notes: '', website: '' })
   const [step, setStep] = useState('order')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
@@ -146,6 +147,27 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
   useEscape(onClose)
   // Removing an item can lower the minimum; adding one can raise it past the chosen date.
   const date = form.delivery_date < min ? min : form.delivery_date
+  // Turnstile token for place-order. Rendered on the contact step; each token works once.
+  const captchaBox = useRef(null)
+  const captchaId = useRef(null)
+  const [captcha, setCaptcha] = useState('')
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || step !== 'contact') return
+    let gone = false
+    loadTurnstile().then((t) => {
+      if (gone) return
+      captchaId.current = t.render(captchaBox.current, {
+        sitekey: TURNSTILE_SITE_KEY, language: 'es', size: 'flexible',
+        callback: setCaptcha, 'expired-callback': () => setCaptcha(''), 'error-callback': () => setCaptcha(''),
+      })
+    }, () => setError('No se pudo cargar la verificación anti-robots. Revisá tu conexión y probá de nuevo.'))
+    return () => {
+      gone = true
+      if (captchaId.current != null) window.turnstile.remove(captchaId.current)
+      captchaId.current = null
+      setCaptcha('')
+    }
+  }, [step])
 
   async function submit(e) {
     e.preventDefault()
@@ -153,9 +175,10 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
     setSending(true)
     setError('')
     const items = cart.map((l) => ({ product_id: l.product.id, variant_id: l.variant?.id ?? null, qty: l.qty }))
-    const { data, error } = await supabase.functions.invoke('place-order', { body: { ...form, delivery_date: date, items } })
+    const { data, error } = await supabase.functions.invoke('place-order', { body: { ...form, delivery_date: date, items, captcha } })
     setSending(false)
     if (error) {
+      if (captchaId.current != null) { window.turnstile.reset(captchaId.current); setCaptcha('') }
       // The function returns a readable message in the body on 4xx.
       const body = await error.context?.json?.().catch(() => null)
       return setError(body?.error ?? 'No se pudo enviar el pedido. Probá de nuevo.')
@@ -191,8 +214,12 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
           <label>Nombre<input required autoFocus value={form.customer_name} onChange={set('customer_name')} /></label>
           <label>Teléfono<input required type="tel" value={form.phone} onChange={set('phone')} /></label>
           <label>Notas (dirección, horario, etc.)<textarea value={form.notes} onChange={set('notes')} /></label>
+          <div className="trap" aria-hidden="true">
+            <label>Sitio web<input tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} /></label>
+          </div>
+          {TURNSTILE_SITE_KEY && <div ref={captchaBox} className="captcha" />}
           {error && <p className="error">{error}</p>}
-          <button disabled={sending || cart.length === 0}>{sending ? 'Enviando…' : 'Confirmar pedido'}</button>
+          <button disabled={sending || cart.length === 0 || (TURNSTILE_SITE_KEY && !captcha)}>{sending ? 'Enviando…' : 'Confirmar pedido'}</button>
         </>
       )}
     </form>

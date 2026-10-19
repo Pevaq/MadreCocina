@@ -3,7 +3,17 @@ import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)
 
-export const imageUrl = (path) => supabase.storage.from('products').getPublicUrl(path).data.publicUrl
+// Cloudflare Turnstile (anti-bot). Without a site key the checkout skips it, like place-order without its secret.
+export const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
+let turnstile
+export const loadTurnstile = () => turnstile ??= new Promise((resolve, reject) => {
+  const s = Object.assign(document.createElement('script'), { src: 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit', async: true })
+  s.onload = () => resolve(window.turnstile)
+  s.onerror = () => { turnstile = null; reject(new Error('turnstile')) }
+  document.head.append(s)
+})
+
+export const imageUrl =(path) => supabase.storage.from('products').getPublicUrl(path).data.publicUrl
 
 // Always ARS: the store only sells in pesos.
 const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })

@@ -239,3 +239,7 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
 .side form > .row:first-child { margin-bottom: 8px; }
 .with-side .wa-float { right: calc(340px + 24px); }
 @media (prefers-reduced-motion: reduce) { .shop, .side { transition: none; animation: none; } }
+
+/* Anti-bot: honeypot off-screen (not display:none, some bots skip those) and the Turnstile widget. */
+.trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.captcha { margin: 0 0 16px; min-height: 65px; }

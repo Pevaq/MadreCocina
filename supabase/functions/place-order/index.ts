@@ -28,6 +28,17 @@ Deno.serve(async (req) => {
   if (!items.every((i: any) => Number.isInteger(i?.qty) && i.qty >= 1 && i.qty <= 99))
     return json({ error: 'Cantidad inválida.' }, 400)
 
+  // Anti-bot. Honeypot: a field people never see. Turnstile: only enforced once TURNSTILE_SECRET is set.
+  if (text(body?.website, 200)) return json({ error: 'No se pudo enviar el pedido.' }, 400)
+  const secret = Deno.env.get('TURNSTILE_SECRET')
+  if (secret) {
+    const check = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: new URLSearchParams({ secret, response: text(body?.captcha, 2048), remoteip: req.headers.get('cf-connecting-ip') ?? '' }),
+    }).then((r) => r.json()).catch(() => null)
+    if (!check?.success) return json({ error: 'No pudimos verificar que no seas un robot. Probá de nuevo.' }, 403)
+  }
+
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const { data: products, error } = await db
     .from('products')
