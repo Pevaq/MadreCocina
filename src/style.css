@@ -83,6 +83,9 @@ img.thumb { width: 56px; height: 56px; aspect-ratio: auto; object-fit: cover; bo
 .photo { position: relative; }
 .photo button { position: absolute; top: -8px; right: -8px; min-height: 0; width: 24px; height: 24px; padding: 0; border-radius: 50%; font-size: .75em; }
 .gallery { position: relative; }
+.gallery .track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+.gallery .track::-webkit-scrollbar { display: none; }
+.gallery .track img { flex: 0 0 100%; scroll-snap-align: start; }
 .gallery button { position: absolute; top: 50%; transform: translateY(-50%); min-height: 0; width: 36px; height: 36px; padding: 0 0 3px; border-radius: 50%; background: rgb(249 246 236 / .9); color: var(--accent-ink); border-color: var(--line); font-size: 1.5em; font-weight: 400; box-shadow: 0 2px 8px rgb(44 44 45 / .15); }
 .gallery .prev { left: 8px; }
 .gallery .next { right: 8px; }

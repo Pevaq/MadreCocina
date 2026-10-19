@@ -101,14 +101,23 @@ export function ProductCard({ product, onAdd, inCart }) {
   const [qty, setQty] = useState(1)
   const variant = variants.find((v) => v.id === variantId)
   const n = product.images.length
-  const step = (d) => setImg((img + d + n) % n)
+  // All photos sit side by side in a scroll-snap strip: swiping is native and switching never waits on a download.
+  const track = useRef(null)
+  const step = (d) => {
+    const t = track.current
+    t.scrollTo({ left: ((img + d + n) % n) * t.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+  }
   const left = Math.min(99, product.stock - inCart)
   const q = Math.min(qty, left)
 
   return (
     <article className="card item">
       <div className="gallery">
-        {n > 0 && <img src={imageUrl(product.images[img])} alt={product.name} onClick={() => step(1)} />}
+        <div className="track" ref={track} onScroll={(e) => setImg(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
+          {product.images.map((path, i) => (
+            <img key={path} src={imageUrl(path)} alt={n > 1 ? `${product.name} (foto ${i + 1} de ${n})` : product.name} loading="lazy" onClick={() => step(1)} />
+          ))}
+        </div>
         {product.stock <= 0 && <span className="badge">Agotado</span>}
         {n > 1 && (
           <>
