@@ -121,8 +121,8 @@ export function ProductCard({ product, onAdd, inCart }) {
         {product.stock <= 0 && <span className="badge">Agotado</span>}
         {n > 1 && (
           <>
-            <button type="button" className="prev" onClick={() => step(-1)} aria-label="Foto anterior">‹</button>
-            <button type="button" className="next" onClick={() => step(1)} aria-label="Foto siguiente">›</button>
+            <button type="button" className="prev" onClick={() => step(-1)} aria-label="Foto anterior"><Chevron left /></button>
+            <button type="button" className="next" onClick={() => step(1)} aria-label="Foto siguiente"><Chevron /></button>
             <div className="dots">{product.images.map((_, i) => <span key={i} className={i === img ? 'on' : ''} />)}</div>
           </>
         )}
@@ -154,6 +154,13 @@ export function ProductCard({ product, onAdd, inCart }) {
     </article>
   )
 }
+
+// Rounded chevron for the photo arrows (the ‹ › glyphs looked thin and sat off-center).
+const Chevron = ({ left }) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d={left ? 'M14.5 6 8.5 12l6 6' : 'M9.5 6l6 6-6 6'} />
+  </svg>
+)
 
 // A bottom sheet / dialog, or with `inline` the desktop sidebar (always open while there's an order).
 // Two steps so it fits without scrolling: the order and its date, then the contact details.
