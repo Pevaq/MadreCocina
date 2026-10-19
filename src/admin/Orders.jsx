@@ -54,7 +54,8 @@ export default function Orders({ status }) {
   }
 
   function exportCsv() {
-    const cell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`
+    // A leading ' stops Excel/Sheets from running a customer-typed name like =HYPERLINK(...) as a formula.
+    const cell = (v) => `"${String(v ?? '').replace(/^[=+\-@\t\r]/, "'$&").replaceAll('"', '""')}"`
     const rows = [['Pedido', 'Fecha entrega', 'Cliente', 'Productos', 'Total', 'Mayorista', 'Monto cobrado']]
       .concat(orders.map((o) => [o.id, o.delivery_date, o.customer_name, itemsText(o.items), o.total, o.wholesale ? 'Sí' : 'No', o.amount_received]))
     // BOM so Excel/Sheets read accents correctly.
@@ -118,8 +119,9 @@ function OrderRow({ order, onOpen, onUpdate, onRemove }) {
 function OrderDetail({ order, onClose, onUpdate, onRemove }) {
   const [amount, setAmount] = useState(order.amount_received ?? order.total)
   const phone = order.phone.replace(/\D/g, '')
-  useEscape(onClose)
-  const saveAmount = () => Number(amount) !== Number(order.amount_received) && onUpdate(order, { amount_received: Number(amount) })
+  const saveAmount = () => amount !== '' && Number(amount) !== Number(order.amount_received) && onUpdate(order, { amount_received: Number(amount) })
+  // Escape closes without a blur: save the typed amount first.
+  useEscape(() => { if (order.wholesale) saveAmount(); onClose() })
 
   return (
     <div className="sheet" onClick={onClose}>

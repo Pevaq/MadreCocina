@@ -11,12 +11,21 @@ export default function Shop() {
   const [checkout, setCheckout] = useState(false)
   const [done, setDone] = useState(null)
 
+  // Also reloaded after an order or a stock error, so the cards show what's left.
+  const loadProducts = () =>
+    supabase.from('products').select('*, variants(*)').eq('active', true).order('sort').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => {
+      if (!data) return
+      setProducts(data)
+      // Drop cart lines whose product was hidden or deleted meanwhile, or the order keeps failing.
+      setCart((c) => c.filter((l) => data.some((p) => p.id === l.product.id)))
+    })
+
   useEffect(() => {
     // The splash stays until the catalog is in, even if a request fails, so it never hangs.
     Promise.allSettled([
       supabase.from('settings').select().single().then(({ data }) => setSettings(data)),
       supabase.from('categories').select().order('sort').then(({ data }) => setCategories(data ?? [])),
-      supabase.from('products').select('*, variants(*)').eq('active', true).order('sort').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => setProducts(data ?? [])),
+      loadProducts(),
     ]).then(hideSplash)
   }, [])
 
@@ -39,7 +48,7 @@ export default function Shop() {
   const wa = whatsapp(settings)
   // Desktop: the order lives in a sidebar next to the catalog instead of a dialog.
   const side = wide && count > 0
-  const checkoutProps = { cart, setCart, onClose: () => setCheckout(false), onDone: (order) => { setCart([]); setCheckout(false); setDone(order) } }
+  const checkoutProps = { cart, setCart, onStale: loadProducts, onClose: () => setCheckout(false), onDone: (order) => { setCart([]); setCheckout(false); setDone(order); loadProducts() } }
 
   return (
     <div className={`shop${side ? ' with-side' : ''}`}>
@@ -122,7 +131,7 @@ export function ProductCard({ product, onAdd, inCart }) {
               <span aria-label="Cantidad">{q}</span>
               <button type="button" onClick={() => setQty(Math.min(left, q + 1))} disabled={q >= left} aria-label="Uno más">+</button>
             </div>
-            <button className="add" onClick={() => { onAdd(product, variant, q); setQty(1) }}>Agregar</button>
+            <button type="button" className="add" onClick={() => { onAdd(product, variant, q); setQty(1) }}>Agregar</button>
           </>
         ) : (
           <button className="add" disabled>{product.stock > 0 ? 'Ya en tu pedido' : 'Agotado'}</button>
@@ -134,7 +143,7 @@ export function ProductCard({ product, onAdd, inCart }) {
 
 // A bottom sheet / dialog, or with `inline` the desktop sidebar (always open while there's an order).
 // Two steps so it fits without scrolling: the order and its date, then the contact details.
-function Checkout({ cart, setCart, onClose, onDone, inline }) {
+function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
   const min = minDeliveryDate(todayIn(), cart.map((l) => l.product.lead_days))
   // website = honeypot: hidden from people, bots fill it and place-order rejects the order.
   const [form, setForm] = useState({ customer_name: '', phone: '', delivery_date: min, notes: '', website: '' })
@@ -182,6 +191,7 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
     setSending(false)
     if (error) {
       if (captchaId.current != null) { window.turnstile.reset(captchaId.current); setCaptcha('') }
+      if (error.context?.status === 409) onStale() // out of stock or gone: refresh the catalog and the cart
       // The function returns a readable message in the body on 4xx.
       const body = await error.context?.json?.().catch(() => null)
       return setError(body?.error ?? 'No se pudo enviar el pedido. Probá de nuevo.')

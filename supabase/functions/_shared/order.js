@@ -3,8 +3,11 @@
 // A variant without its own price uses the product's price.
 export const unitPrice = (product, variant) => variant?.price ?? product.price
 
-// "YYYY-MM-DD" for today in the given time zone (undefined = the runtime's own).
-export const todayIn = (timeZone) =>
+// The store's time zone: dates follow Buenos Aires, not the customer's device.
+export const STORE_TZ = 'America/Argentina/Buenos_Aires'
+
+// "YYYY-MM-DD" for today in the given time zone.
+export const todayIn = (timeZone = STORE_TZ) =>
   new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date())
 
 export function addDays(isoDate, days) {

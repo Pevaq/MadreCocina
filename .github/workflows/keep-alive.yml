@@ -5,6 +5,8 @@ on:
     - cron: '0 12 * * 1,4'
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   ping:
     runs-on: ubuntu-latest
@@ -20,3 +22,4 @@ jobs:
       - run: >
           curl -fsS -X POST "${{ vars.SUPABASE_URL }}/functions/v1/clean-images"
           -H "Authorization: Bearer ${{ vars.SUPABASE_ANON_KEY }}"
+          -H "x-clean-token: ${{ secrets.CLEAN_TOKEN }}"

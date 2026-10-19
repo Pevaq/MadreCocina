@@ -1,7 +1,7 @@
 // Receives an order from the shop, recomputes prices from the database (never trusts the client),
 // checks the delivery date, takes the stock and saves it (create_order, one transaction) and emails the owner if email notifications are on.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { unitPrice, todayIn, minDeliveryDate } from '../_shared/order.js'
+import { unitPrice, todayIn, minDeliveryDate, STORE_TZ } from '../_shared/order.js'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -10,7 +10,7 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
-const TZ = Deno.env.get('STORE_TZ') ?? 'America/Argentina/Buenos_Aires'
+const TZ = Deno.env.get('STORE_TZ') ?? STORE_TZ
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
 const fail = (e: unknown) => (console.error(e), json({ error: 'No se pudo enviar el pedido. Probá de nuevo.' }, 500))

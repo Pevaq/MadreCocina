@@ -102,6 +102,14 @@ begin
 end $$;
 create trigger restock after delete on orders for each row execute function restock_cancelled_order();
 
+-- The product editor sends how much the stock changed, not the new value: orders placed while it was open
+-- keep their units (saw 5, typed 8 → +3 to whatever is there now). Security invoker: RLS lets only admins update.
+create function add_stock(product_id bigint, delta int) returns void language sql set search_path = public as $$
+  update products set stock = greatest(stock + delta, 0) where id = product_id;
+$$;
+revoke execute on function add_stock(bigint, int) from public, anon;
+grant execute on function add_stock(bigint, int) to authenticated;
+
 -- Access: the public reads the active catalog; only the users listed in admins touch anything else.
 -- Being logged in is not enough: if sign-ups get turned on by mistake, a new account still sees nothing.
 -- Orders are inserted by the place-order function (service role), never directly by the public.

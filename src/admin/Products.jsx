@@ -111,12 +111,17 @@ function Editor({ product, categories, onClose }) {
     setBusy(true)
     const { variants, id, ...fields } = p
     const row = { ...fields, price: Number(fields.price), lead_days: Number(fields.lead_days), stock: Number(fields.stock), category_id: fields.category_id || null }
-    // Untouched stock isn't sent: orders that came in while editing already took their units.
-    if (id && row.stock === product.stock) delete row.stock
+    // An edit sends the change, not the value: orders that came in while editing keep their units (add_stock).
+    const delta = id ? row.stock - product.stock : 0
+    if (id) delete row.stock
     const { data, error } = id
       ? await supabase.from('products').update(row).eq('id', id).select().single()
       : await supabase.from('products').insert(row).select().single()
     if (error) { setBusy(false); return setError(error.message) }
+    if (delta) {
+      const { error } = await supabase.rpc('add_stock', { product_id: id, delta })
+      if (error) { setBusy(false); return setError(error.message) }
+    }
 
     const keep = variants.filter((v) => v.name.trim())
     const removed = product.variants.filter((old) => !keep.some((v) => v.id === old.id)).map((v) => v.id)
