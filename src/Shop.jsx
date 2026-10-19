@@ -40,38 +40,36 @@ export default function Shop() {
   const checkoutProps = { cart, setCart, onClose: () => setCheckout(false), onDone: (order) => { setCart([]); setCheckout(false); setDone(order) } }
 
   return (
-    <div className={`page${side ? ' with-side' : ''}`}>
-      <header className="brand"><h1><img src="logo.svg" alt={settings?.store_name ?? 'Madre'} width="820" height="444" /></h1></header>
-      <div className="shop-body">
-        <main>
-          <nav className="chips">
-            <button className={!category ? 'on' : ''} onClick={() => setCategory(null)}>Todo</button>
-            {categories.map((c) => (
-              <button key={c.id} className={category === c.id ? 'on' : ''} onClick={() => setCategory(c.id)}>{c.name}</button>
-            ))}
-          </nav>
-          <div className="grid">
-            {shown.map((p) => (
-              <ProductCard key={p.id} product={p} onAdd={add} inCart={cart.reduce((n, l) => n + (l.product.id === p.id ? l.qty : 0), 0)} />
-            ))}
-          </div>
-          <footer className="label">
-            <img src="panadero.svg" alt="" width="458" height="523" />
-            SIN CONSERVANTES · PRODUCTO LOCAL
-          </footer>
-        </main>
-        {side && <Checkout {...checkoutProps} inline />}
+    <div className={`shop${side ? ' with-side' : ''}`}>
+      <div className="page">
+        <header className="brand"><h1><img src="logo.svg" alt={settings?.store_name ?? 'Madre'} width="820" height="444" /></h1></header>
+        <nav className="chips">
+          <button className={!category ? 'on' : ''} onClick={() => setCategory(null)}>Todo</button>
+          {categories.map((c) => (
+            <button key={c.id} className={category === c.id ? 'on' : ''} onClick={() => setCategory(c.id)}>{c.name}</button>
+          ))}
+        </nav>
+        <div className="grid">
+          {shown.map((p) => (
+            <ProductCard key={p.id} product={p} onAdd={add} inCart={cart.reduce((n, l) => n + (l.product.id === p.id ? l.qty : 0), 0)} />
+          ))}
+        </div>
+        <footer className="label">
+          <img src="panadero.svg" alt="" width="458" height="523" />
+          SIN CONSERVANTES · PRODUCTO LOCAL
+        </footer>
       </div>
       {count > 0 && !checkout && !side && (
         <button className="cart-bar" onClick={() => setCheckout(true)}>Ver pedido ({count})</button>
       )}
       {wa && !checkout && (
-        <a className={`wa-float${side ? ' left' : count > 0 ? ' up' : ''}`} href={wa} target="_blank" rel="noreferrer">
+        <a className={`wa-float${count > 0 && !side ? ' up' : ''}`} href={wa} target="_blank" rel="noreferrer">
           <img src="galleta.svg" alt="" width="472" height="476" />
           WhatsApp
         </a>
       )}
       {checkout && !side && <Checkout {...checkoutProps} />}
+      {side && <Checkout {...checkoutProps} inline />}
     </div>
   )
 }

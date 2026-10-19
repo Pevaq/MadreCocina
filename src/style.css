@@ -224,13 +224,15 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
   .day h3 { grid-column: 1 / -1; margin-top: 12px; }
 }
 
-/* Desktop order sidebar: catalog on the left, the order sticky on the right (only while there's an order). */
-.page.with-side { max-width: 1320px; }
-.with-side .shop-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; }
-.side { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+/* Desktop order sidebar: fixed to the right edge, full height. The shop keeps its width and re-centers in the space left. */
+.shop { transition: padding-right .25s ease; }
+.shop.with-side { padding-right: 340px; }
+.side { position: fixed; top: 0; right: 0; bottom: 0; z-index: 3; width: 340px; overflow-y: auto; background: var(--card); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgb(44 44 45 / .06); padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); animation: side-in .25s ease; }
+@keyframes side-in { from { transform: translateX(100%); } }
 .side .line { padding: 8px 0; border-bottom: 1px solid var(--line); margin: 0; flex-wrap: nowrap; }
 .side .line > span:first-child { flex: 1; }
 .side .total { padding: 12px 0 20px; }
 .side form > button:last-child { width: 100%; min-height: 52px; }
 .side form > .row:first-child { margin-bottom: 8px; }
-.wa-float.left { right: auto; left: 24px; }
+.with-side .wa-float { right: calc(340px + 24px); }
+@media (prefers-reduced-motion: reduce) { .shop, .side { transition: none; animation: none; } }
