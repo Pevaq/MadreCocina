@@ -58,7 +58,7 @@ Setup desde cero: ver `README.md`. Este archivo es el contexto vivo del proyecto
 - [x] Catálogo de prueba borrado (productos y categorías a mano; las 14 imágenes `test-*` con `clean-images`, 2026-10-18).
 - [ ] Rediseño de UI con la marca MADRE (2026-10-18): aplicado a la tienda (banda roja con logo, títulos Kirang Haerang, ilustraciones) y, por los tokens compartidos, al backoffice. Falta revisarlo con la dueña.
 - [x] Actions del deploy actualizadas a versiones con Node 24 (2026-10-18): checkout v7, setup-node v7, upload-pages-artifact v5, deploy-pages v5.
-- [ ] **Pedidos de prueba en producción** (2026-10-18): #11 "PRUEBA Ana López" y #12 "PRUEBA Martín Gómez", cargados por SQL para ver la lista en el celular. Sus líneas no tienen `product_id` a propósito: borrarlos no devuelve stock (nunca descontaron). Borrarlos desde el backoffice cuando ya no sirvan.
+- [x] Pedidos de prueba borrados y numeración de pedidos reiniciada en 1 (2026-10-19, `alter sequence orders_id_seq restart with 1`; solo con la tabla `orders` vacía).
 
 ## Ideas / deuda conocida
 
