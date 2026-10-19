@@ -223,3 +223,14 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
   .day { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
   .day h3 { grid-column: 1 / -1; margin-top: 12px; }
 }
+
+/* Desktop order sidebar: catalog on the left, the order sticky on the right (only while there's an order). */
+.page.with-side { max-width: 1320px; }
+.with-side .shop-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; }
+.side { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+.side .line { padding: 8px 0; border-bottom: 1px solid var(--line); margin: 0; flex-wrap: nowrap; }
+.side .line > span:first-child { flex: 1; }
+.side .total { padding: 12px 0 20px; }
+.side form > button:last-child { width: 100%; min-height: 52px; }
+.side form > .row:first-child { margin-bottom: 8px; }
+.wa-float.left { right: auto; left: 24px; }

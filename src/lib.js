@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)
@@ -27,4 +27,16 @@ export function useEscape(onClose) {
     addEventListener('keydown', onKey)
     return () => removeEventListener('keydown', onKey)
   }, [onClose])
+}
+
+// True while the media query matches; follows window resizes.
+export function useMedia(query) {
+  const [matches, setMatches] = useState(() => matchMedia(query).matches)
+  useEffect(() => {
+    const mq = matchMedia(query)
+    const onChange = () => setMatches(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [query])
+  return matches
 }
