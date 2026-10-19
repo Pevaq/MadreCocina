@@ -10,3 +10,11 @@ export const money = (n) => fmt.format(n)
 
 // "sábado, 25 de octubre"; noon so no timezone moves it to the day before.
 export const longDate = (iso) => new Date(`${iso}T12:00`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+// Fades out the loading screen from index.html once there is something to show.
+export function hideSplash() {
+  const el = document.getElementById('splash')
+  if (!el) return
+  el.classList.add('out')
+  setTimeout(() => el.remove(), 400)
+}

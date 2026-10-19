@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib.js'
+import { supabase, hideSplash } from '../lib.js'
 import Orders from './Orders.jsx'
 import Products from './Products.jsx'
 import Categories from './Categories.jsx'
@@ -14,6 +14,7 @@ export default function Admin() {
   const [tab, setTab] = useState('orders')
 
   useEffect(() => {
+    hideSplash()
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()

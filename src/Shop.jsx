@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase, imageUrl, money, longDate } from './lib.js'
+import { supabase, imageUrl, money, longDate, hideSplash } from './lib.js'
 import { unitPrice, todayIn, minDeliveryDate } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
@@ -12,9 +12,12 @@ export default function Shop() {
   const [done, setDone] = useState(null)
 
   useEffect(() => {
-    supabase.from('settings').select().single().then(({ data }) => setSettings(data))
-    supabase.from('categories').select().order('sort').then(({ data }) => setCategories(data ?? []))
-    supabase.from('products').select('*, variants(*)').eq('active', true).order('sort').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => setProducts(data ?? []))
+    // The splash stays until the catalog is in, even if a request fails, so it never hangs.
+    Promise.allSettled([
+      supabase.from('settings').select().single().then(({ data }) => setSettings(data)),
+      supabase.from('categories').select().order('sort').then(({ data }) => setCategories(data ?? [])),
+      supabase.from('products').select('*, variants(*)').eq('active', true).order('sort').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => setProducts(data ?? [])),
+    ]).then(hideSplash)
   }, [])
 
   useEffect(() => { if (settings) document.title = settings.store_name }, [settings])

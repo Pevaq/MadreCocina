@@ -9,8 +9,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Onest:wght@300;400;500;700&display=swap" rel="stylesheet" />
+    <!-- Splash: plain HTML/CSS so it paints before the JS loads; the app removes it (hideSplash in src/lib.js). -->
+    <style>
+      #splash { position: fixed; inset: 0; z-index: 10; display: grid; place-content: center; justify-items: center; gap: 28px; background: #a40005; transition: opacity .35s; }
+      #splash.out { opacity: 0; pointer-events: none; }
+      #splash img { width: min(300px, 70vw); height: auto; animation: ride 1.6s ease-in-out infinite; }
+      #splash span { display: flex; gap: 8px; }
+      #splash i { width: 8px; height: 8px; border-radius: 50%; background: #efe9d6; animation: dot 1.2s ease-in-out infinite; }
+      #splash i:nth-child(2) { animation-delay: .15s; }
+      #splash i:nth-child(3) { animation-delay: .3s; }
+      @keyframes ride { 50% { transform: translateX(10px) rotate(-1.5deg); } }
+      @keyframes dot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) { #splash img, #splash i { animation: none; } }
+    </style>
   </head>
   <body>
+    <div id="splash" role="status" aria-label="Cargando"><img src="logo.svg" alt="" width="820" height="444" /><span><i></i><i></i><i></i></span></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
