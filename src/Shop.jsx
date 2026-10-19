@@ -151,14 +151,16 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
   const captchaBox = useRef(null)
   const captchaId = useRef(null)
   const [captcha, setCaptcha] = useState('')
+  const [ask, setAsk] = useState(false) // Cloudflare wants a click: only then the widget shows
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY || step !== 'contact') return
     let gone = false
     loadTurnstile().then((t) => {
       if (gone) return
       captchaId.current = t.render(captchaBox.current, {
-        sitekey: TURNSTILE_SITE_KEY, language: 'es', size: 'flexible',
+        sitekey: TURNSTILE_SITE_KEY, language: 'es', size: 'flexible', appearance: 'interaction-only',
         callback: setCaptcha, 'expired-callback': () => setCaptcha(''), 'error-callback': () => setCaptcha(''),
+        'before-interactive-callback': () => setAsk(true), 'after-interactive-callback': () => setAsk(false),
       })
     }, () => setError('No se pudo cargar la verificación anti-robots. Revisá tu conexión y probá de nuevo.'))
     return () => {
@@ -166,6 +168,7 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
       if (captchaId.current != null) window.turnstile.remove(captchaId.current)
       captchaId.current = null
       setCaptcha('')
+      setAsk(false)
     }
   }, [step])
 
@@ -217,9 +220,9 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
           <div className="trap" aria-hidden="true">
             <label>Sitio web<input tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} /></label>
           </div>
-          {TURNSTILE_SITE_KEY && <div ref={captchaBox} className="captcha" />}
+          {TURNSTILE_SITE_KEY && <div ref={captchaBox} className={`captcha${ask ? ' ask' : ''}`} />}
           {error && <p className="error">{error}</p>}
-          <button disabled={sending || cart.length === 0 || (TURNSTILE_SITE_KEY && !captcha)}>{sending ? 'Enviando…' : 'Confirmar pedido'}</button>
+          <button disabled={sending || cart.length === 0 || (TURNSTILE_SITE_KEY && !captcha)}>{sending ? 'Enviando…' : TURNSTILE_SITE_KEY && !captcha ? 'Verificando…' : 'Confirmar pedido'}</button>
         </>
       )}
     </form>
