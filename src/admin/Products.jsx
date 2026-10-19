@@ -32,11 +32,11 @@ export default function Products() {
 
   return (
     <section>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
       <button onClick={() => setEditing({ ...EMPTY, sort: products.length })}>+ Nuevo producto</button>
       {products.map((p) => (
         <article key={p.id} className={`card row product${dragging === p.id ? ' dragging' : ''}`} data-sort-id={p.id} onClick={() => setEditing(p)}>
-          <button {...handle(p.id)} />
+          <button {...handle(p.id, p.name)} />
           {p.images[0] && <img className="thumb" src={imageUrl(p.images[0])} alt="" />}
           <div className="info">
             <span>{p.name}</span>
@@ -176,13 +176,13 @@ function Editor({ product, categories, onClose }) {
 
       <section className="box">
         <h3>Fotos ({p.images.length}/3)</h3>
-        <p className="muted">Al menos una. La primera es la portada en la tienda; arrastrá las fotos para cambiar el orden.</p>
+        <p className="muted">Al menos una. La primera es la portada en la tienda; arrastrá las fotos (o usá las flechas) para cambiar el orden.</p>
         <div className="photos">
           {p.images.map((path, i) => (
             <div key={path} className={`photo${photos.dragging === path ? ' dragging' : ''}`} data-sort-id={path}>
-              <img src={imageUrl(path)} alt="" {...photos.grip(path)} />
+              <img src={imageUrl(path)} alt="" {...photos.grip(path, `foto ${i + 1}`)} />
               {i === 0 && <span className="badge">Portada</span>}
-              <button type="button" onClick={() => set('images', p.images.filter((x) => x !== path))} aria-label="Quitar foto">✕</button>
+              <button type="button" onClick={() => set('images', p.images.filter((x) => x !== path))} aria-label={`Quitar foto ${i + 1}`}>✕</button>
             </div>
           ))}
           {p.images.length < 3 && (
@@ -212,10 +212,10 @@ function Editor({ product, categories, onClose }) {
         <h3>Vista previa</h3>
         <p className="muted">Así se ve en la tienda.</p>
         {/* Remounted when photos change so the card's photo index never points past the end. */}
-        <div className="grid"><ProductCard key={p.images.join()} product={preview} onAdd={() => {}} inCart={0} /></div>
+        <div className="grid" inert><ProductCard key={p.images.join()} product={preview} onAdd={() => {}} inCart={0} /></div>
       </section>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">
         <button disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
         {p.id && <button type="button" className="ghost danger" onClick={remove}>Borrar producto</button>}

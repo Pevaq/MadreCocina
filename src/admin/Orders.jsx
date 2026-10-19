@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase, money, longDate, useEscape } from '../lib.js'
+import { supabase, money, longDate, useDialog } from '../lib.js'
 import { todayIn, addDays } from '../../supabase/functions/_shared/order.js'
 import TrashIcon from './TrashIcon.jsx'
 
@@ -72,7 +72,7 @@ export default function Orders({ status }) {
 
   return (
     <section>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
       {!pending && orders.length > 0 && (
         <div className="row"><span>Total cobrado: <strong>{money(received)}</strong></span><button onClick={exportCsv}>Exportar CSV</button></div>
       )}
@@ -92,7 +92,7 @@ export default function Orders({ status }) {
 
 function StatusSelect({ order, onUpdate }) {
   return (
-    <select className={`status ${order.status}`} value={order.status} onChange={(e) => onUpdate(order, { status: e.target.value })} aria-label="Estado">
+    <select className={`status ${order.status}`} value={order.status} onChange={(e) => onUpdate(order, { status: e.target.value })} aria-label={`Estado del pedido #${order.id}`}>
       {Object.entries(STATUSES).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
     </select>
   )
@@ -121,13 +121,13 @@ function OrderDetail({ order, onClose, onUpdate, onRemove }) {
   const phone = order.phone.replace(/\D/g, '')
   const saveAmount = () => amount !== '' && Number(amount) !== Number(order.amount_received) && onUpdate(order, { amount_received: Number(amount) })
   // Escape closes without a blur: save the typed amount first.
-  useEscape(() => { if (order.wholesale) saveAmount(); onClose() })
+  const dialog = useDialog(() => { if (order.wholesale) saveAmount(); onClose() })
 
   return (
     <div className="sheet" onClick={onClose}>
-      <div className="panel order-detail" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialog} className="panel order-detail" role="dialog" aria-modal="true" aria-labelledby="order-title" onClick={(e) => e.stopPropagation()}>
         <header className="row">
-          <h2>Pedido #{order.id}</h2>
+          <h2 id="order-title" tabIndex={-1}>Pedido #{order.id}</h2>
           <button type="button" className="ghost" onClick={onClose}>Cerrar</button>
         </header>
 

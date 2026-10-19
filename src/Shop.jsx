@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase, imageUrl, money, longDate, hideSplash, useEscape, useMedia, TURNSTILE_SITE_KEY, loadTurnstile } from './lib.js'
+import { supabase, imageUrl, money, longDate, hideSplash, useDialog, useMedia, TURNSTILE_SITE_KEY, loadTurnstile } from './lib.js'
 import { unitPrice, todayIn, minDeliveryDate } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
@@ -10,6 +10,7 @@ export default function Shop() {
   const [cart, setCart] = useState([])
   const [checkout, setCheckout] = useState(false)
   const [done, setDone] = useState(null)
+  const [said, setSaid] = useState('') // screen readers hear what "Agregar" did
 
   // Also reloaded after an order or a stock error, so the cards show what's left.
   const loadProducts = () =>
@@ -31,13 +32,16 @@ export default function Shop() {
 
   useEffect(() => { if (settings) document.title = settings.store_name }, [settings])
 
-  const add = (product, variant, qty) => setCart((c) => {
-    const key = `${product.id}-${variant?.id ?? ''}`
-    const found = c.find((l) => l.key === key)
-    return found
-      ? c.map((l) => (l === found ? { ...l, qty: l.qty + qty } : l))
-      : [...c, { key, product, variant, qty }]
-  })
+  const add = (product, variant, qty) => {
+    setSaid(`Agregaste ${qty} × ${product.name}${variant ? ` (${variant.name})` : ''} a tu pedido.`)
+    setCart((c) => {
+      const key = `${product.id}-${variant?.id ?? ''}`
+      const found = c.find((l) => l.key === key)
+      return found
+        ? c.map((l) => (l === found ? { ...l, qty: l.qty + qty } : l))
+        : [...c, { key, product, variant, qty }]
+    })
+  }
 
   // Hooks before the early return: a hook after it crashes React when the order is done.
   const wide = useMedia('(min-width: 1100px)')
@@ -52,13 +56,13 @@ export default function Shop() {
 
   return (
     <div className={`shop${side ? ' with-side' : ''}`}>
-      <div className="page">
+      <main className="page">
         <header className="brand"><h1><img src="logo.svg" alt={settings?.store_name ?? 'Madre'} width="820" height="444" /></h1></header>
         {settings?.show_categories && (
           <nav className="chips">
-            <button className={!category ? 'on' : ''} onClick={() => setCategory(null)}>Todo</button>
+            <button className={!category ? 'on' : ''} aria-pressed={!category} onClick={() => setCategory(null)}>Todo</button>
             {categories.map((c) => (
-              <button key={c.id} className={category === c.id ? 'on' : ''} onClick={() => setCategory(c.id)}>{c.name}</button>
+              <button key={c.id} className={category === c.id ? 'on' : ''} aria-pressed={category === c.id} onClick={() => setCategory(c.id)}>{c.name}</button>
             ))}
           </nav>
         )}
@@ -71,8 +75,10 @@ export default function Shop() {
           <img src="panadero.svg" alt="" width="458" height="523" />
           SIN CONSERVANTES · PRODUCTO LOCAL
         </footer>
-      </div>
-      {count > 0 && !checkout && !side && (
+        <p className="sr-only" aria-live="polite">{said}</p>
+      </main>
+      {/* Stays while the dialog is open (behind it, inert) so focus can return to it on close. */}
+      {count > 0 && !side && (
         <button className="cart-bar" onClick={() => setCheckout(true)}>Ver pedido ({count})</button>
       )}
       {wa && !checkout && (
@@ -124,18 +130,17 @@ export function ProductCard({ product, onAdd, inCart }) {
       </div>
       <div className="buy">
         <strong>{money(unitPrice(product, variant))}</strong>
-        {left > 0 ? (
-          <>
-            <div className="qty">
-              <button type="button" onClick={() => setQty(Math.max(1, q - 1))} disabled={q <= 1} aria-label="Uno menos">−</button>
-              <span aria-label="Cantidad">{q}</span>
-              <button type="button" onClick={() => setQty(Math.min(left, q + 1))} disabled={q >= left} aria-label="Uno más">+</button>
-            </div>
-            <button type="button" className="add" onClick={() => { onAdd(product, variant, q); setQty(1) }}>Agregar</button>
-          </>
-        ) : (
-          <button className="add" disabled>{product.stock > 0 ? 'Ya en tu pedido' : 'Agotado'}</button>
+        {/* aria-disabled, not disabled: a disabled button drops keyboard focus when it hits the limit. */}
+        {left > 0 && (
+          <div className="qty">
+            <button type="button" onClick={() => setQty(Math.max(1, q - 1))} aria-disabled={q <= 1} aria-label={`Uno menos de ${product.name}`}>−</button>
+            <output aria-label={`Cantidad de ${product.name}`}>{q}</output>
+            <button type="button" onClick={() => setQty(Math.min(left, q + 1))} aria-disabled={q >= left} aria-label={`Uno más de ${product.name}`}>+</button>
+          </div>
         )}
+        <button type="button" className="add" aria-disabled={left <= 0} onClick={() => { if (left > 0) { onAdd(product, variant, q); setQty(1) } }}>
+          {left > 0 ? 'Agregar' : product.stock > 0 ? 'Ya en tu pedido' : 'Agotado'}
+        </button>
       </div>
     </article>
   )
@@ -153,7 +158,10 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
   const total = cart.reduce((s, l) => s + unitPrice(l.product, l.variant) * l.qty, 0)
   const count = cart.reduce((n, l) => n + l.qty, 0)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
-  useEscape(onClose)
+  const dialog = useDialog(onClose, !inline)
+  // After "Editar" its button is gone: put focus back at the top of the order step.
+  const edited = useRef(false)
+  useEffect(() => { if (edited.current) dialog.current.querySelector('h2').focus() }, [step])
   // Removing an item can lower the minimum; adding one can raise it past the chosen date.
   const date = form.delivery_date < min ? min : form.delivery_date
   // Turnstile token for place-order. Rendered on the contact step; each token works once.
@@ -202,7 +210,7 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
   const body = (
     <form onSubmit={submit}>
       <div className="row">
-        <h2>{step === 'order' ? 'Tu pedido' : 'Tus datos'}</h2>
+        <h2 id="checkout-title" tabIndex={-1}>{step === 'order' ? 'Tu pedido' : 'Tus datos'}</h2>
         {!inline && <button type="button" className="ghost" onClick={onClose}>Cerrar</button>}
       </div>
       {step === 'order' ? (
@@ -211,7 +219,7 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
             <div key={l.key} className="row line">
               <span>{l.qty} × {l.product.name}{l.variant ? ` (${l.variant.name})` : ''}</span>
               <span>{money(unitPrice(l.product, l.variant) * l.qty)}</span>
-              <button type="button" className="icon" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label="Quitar">✕</button>
+              <button type="button" className="icon" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label={`Quitar ${l.product.name}${l.variant ? ` (${l.variant.name})` : ''}`}>✕</button>
             </div>
           ))}
           <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
@@ -222,22 +230,24 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
         <>
           <div className="summary">
             <span>{count === 1 ? '1 producto' : `${count} productos`} · <strong>{money(total)}</strong><br />Entrega el {longDate(date)}</span>
-            <button type="button" className="ghost" onClick={() => setStep('order')}>Editar</button>
+            <button type="button" className="ghost" onClick={() => { edited.current = true; setStep('order') }}>Editar</button>
           </div>
-          <label>Nombre<input required autoFocus value={form.customer_name} onChange={set('customer_name')} /></label>
-          <label>Teléfono<input required type="tel" value={form.phone} onChange={set('phone')} /></label>
+          <label>Nombre<input required autoFocus autoComplete="name" value={form.customer_name} onChange={set('customer_name')} /></label>
+          <label>Teléfono<input required type="tel" autoComplete="tel" value={form.phone} onChange={set('phone')} /></label>
           <label>Notas (dirección, horario, etc.)<textarea value={form.notes} onChange={set('notes')} /></label>
           <div className="trap" aria-hidden="true">
             <label>Sitio web<input tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} /></label>
           </div>
           {TURNSTILE_SITE_KEY && <div ref={captchaBox} className={`captcha${ask ? ' ask' : ''}`} />}
-          {error && <p className="error">{error}</p>}
+          {error && <p className="error" role="alert">{error}</p>}
           <button disabled={sending || cart.length === 0 || (TURNSTILE_SITE_KEY && !captcha)}>{sending ? 'Enviando…' : TURNSTILE_SITE_KEY && !captcha ? 'Verificando…' : 'Confirmar pedido'}</button>
         </>
       )}
     </form>
   )
-  return inline ? <aside className="side">{body}</aside> : <div className="sheet">{body}</div>
+  return inline
+    ? <aside ref={dialog} className="side" aria-labelledby="checkout-title">{body}</aside>
+    : <div ref={dialog} className="sheet" role="dialog" aria-modal="true" aria-labelledby="checkout-title">{body}</div>
 }
 
 // wa.me link to the store, or null when WhatsApp is off or has no number.
@@ -249,6 +259,9 @@ const whatsapp = (settings, text) =>
 // The order number is not shown: it would tell customers how many orders the store gets.
 function Done({ order, settings, onBack }) {
   const [copied, setCopied] = useState(false)
+  // A new screen: start keyboard and screen reader users at its title.
+  const title = useRef(null)
+  useEffect(() => { scrollTo(0, 0); title.current.focus() }, [])
   const date = longDate(order.delivery_date)
   const alias = settings?.transfer_alias
   const lines = order.items.map((l) => `• ${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join('\n')
@@ -257,9 +270,9 @@ function Done({ order, settings, onBack }) {
   const copy = () => navigator.clipboard.writeText(alias).then(() => setCopied(true), () => {})
 
   return (
-    <div className="page done">
+    <main className="page done">
       <img src="chef.svg" alt="" width="358" height="601" />
-      <h1>¡Recibimos tu pedido!</h1>
+      <h1 ref={title} tabIndex={-1}>¡Recibimos tu pedido!</h1>
       <p>Es para el <strong>{date}</strong>. Total: <strong>{money(order.total)}</strong>.</p>
       {alias && (
         <>
@@ -267,7 +280,7 @@ function Done({ order, settings, onBack }) {
           <div className="card pay">
             <strong>{alias}</strong>
             {settings.transfer_holder && <span className="muted">{settings.transfer_holder}</span>}
-            <button type="button" className="ghost" onClick={copy}>{copied ? 'Copiado ✓' : 'Copiar alias'}</button>
+            <button type="button" className="ghost" onClick={copy}><span aria-live="polite">{copied ? 'Copiado ✓' : 'Copiar alias'}</span></button>
           </div>
         </>
       )}
@@ -276,6 +289,6 @@ function Done({ order, settings, onBack }) {
         : <p>Te vamos a escribir al {order.phone} para coordinar.</p>}
       {wa && <a className="button" href={wa} target="_blank" rel="noreferrer">{alias ? 'Enviar comprobante por WhatsApp' : 'Avisar por WhatsApp'}</a>}
       <button className="ghost" onClick={onBack}>Volver a la tienda</button>
-    </div>
+    </main>
   )
 }

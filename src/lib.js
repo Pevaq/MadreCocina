@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)
@@ -38,6 +38,28 @@ export function useEscape(onClose) {
     return () => removeEventListener('keydown', onKey)
   }, [onClose])
 }
+
+// Modal behavior for a sheet/dialog: Escape closes, focus goes to its h2 (tabIndex -1), everything else
+// on the page is inert (no Tab or screen reader behind it) and focus returns where it was on close.
+// Off (`on` false) for the desktop sidebar, which isn't modal.
+export function useDialog(onClose, on = true) {
+  const ref = useRef(null)
+  useEscape(on ? onClose : noop)
+  useEffect(() => {
+    if (!on) return
+    const back = document.activeElement
+    const off = []
+    for (let el = ref.current; el && el !== document.body; el = el.parentElement)
+      for (const s of el.parentElement.children) if (s !== el && !s.inert) { s.inert = true; off.push(s) }
+    ref.current.querySelector('h2')?.focus()
+    return () => {
+      off.forEach((s) => { s.inert = false })
+      if (back?.isConnected) back.focus()
+    }
+  }, [on])
+  return ref
+}
+const noop = () => {}
 
 // True while the media query matches; follows window resizes.
 export function useMedia(query) {

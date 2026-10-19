@@ -24,20 +24,20 @@ export default function Admin() {
   if (!session) return <Login />
 
   return (
-    <div className="page">
+    <main className="page">
       <div className="row admin-head">
         <h1>Backoffice</h1>
         <button className="ghost" onClick={() => supabase.auth.signOut()}>Salir</button>
       </div>
       <nav className="chips">
         {Object.entries(TABS).map(([k, label]) => (
-          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
+          <button key={k} className={tab === k ? 'on' : ''} aria-current={tab === k} onClick={() => setTab(k)}>{label}</button>
         ))}
       </nav>
       {tab === 'orders' && <SubTabs tabs={ORDER_TABS}>{(k) => <Orders key={k} status={k} />}</SubTabs>}
       {tab === 'manage' && <SubTabs tabs={MANAGE_TABS}>{(k) => (k === 'products' ? <Products /> : <Categories />)}</SubTabs>}
       {tab === 'settings' && <Settings />}
-    </div>
+    </main>
   )
 }
 
@@ -48,7 +48,7 @@ function SubTabs({ tabs, children }) {
     <>
       <nav className="tabs">
         {Object.entries(tabs).map(([k, label]) => (
-          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
+          <button key={k} className={tab === k ? 'on' : ''} aria-current={tab === k} onClick={() => setTab(k)}>{label}</button>
         ))}
       </nav>
       {children(tab)}
@@ -68,12 +68,12 @@ function Login() {
   }
 
   return (
-    <form className="page narrow" onSubmit={submit}>
+    <main className="page narrow"><form onSubmit={submit}>
       <h1>Ingresar</h1>
-      <label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-      <label>Contraseña<input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-      {error && <p className="error">{error}</p>}
+      <label>Email<input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+      <label>Contraseña<input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+      {error && <p className="error" role="alert">{error}</p>}
       <button>Entrar</button>
-    </form>
+    </form></main>
   )
 }

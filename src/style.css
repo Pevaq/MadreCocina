@@ -36,12 +36,18 @@ button, .button {
   min-height: 44px; padding: 10px 18px; font-weight: 700; line-height: 1.2;
   cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
 }
-button:disabled { opacity: .5; }
+button:disabled, button[aria-disabled="true"] { opacity: .5; }
+button[aria-disabled="true"] { cursor: default; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* The fixed cart bar / WhatsApp button must not cover the focused field (WCAG 2.4.11). */
+html { scroll-padding-bottom: 120px; }
+/* Headings get focus only to move keyboard and screen reader users there: no ring. */
+[tabindex="-1"]:focus { outline: none; }
 button.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 button.ghost { background: transparent; color: var(--accent-ink); border-color: var(--line); }
 button.icon { background: transparent; color: var(--muted); border-color: transparent; min-width: 44px; padding: 0; }
 input, select, textarea {
-  width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+  width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--muted); border-radius: 10px;
   background: var(--card); color: var(--fg);
 }
 textarea { min-height: 88px; resize: vertical; }
@@ -169,7 +175,7 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
 .item .buy strong { flex: 1; font-size: 1.25rem; white-space: nowrap; }
 .qty { display: flex; align-items: center; background: var(--well); border-radius: 999px; }
 .qty button { background: none; border: 0; color: var(--fg); min-width: 30px; min-height: 44px; padding: 0 6px; font-weight: 300; font-size: 1.1rem; }
-.qty span { min-width: 1.4ch; text-align: center; }
+.qty output { min-width: 1.4ch; text-align: center; }
 .item .add { border-radius: 999px; padding: 12px 16px; font-weight: 500; font-size: .875rem; }
 
 /* Product editor: one card per block, narrow column, actions pinned to the bottom. */
@@ -209,7 +215,7 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
 /* Desktop: mouse feedback, visible keyboard focus. */
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (hover: hover) {
-  button:not(:disabled):hover, .button:hover { filter: brightness(.94); }
+  button:not(:disabled, [aria-disabled="true"]):hover, .button:hover { filter: brightness(.94); }
   .card.order:hover, .card.row:hover { border-color: var(--muted); }
   .tabs button:hover, .chips button:not(.on):hover { color: var(--accent-ink); }
 }
