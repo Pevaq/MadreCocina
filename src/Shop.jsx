@@ -129,12 +129,15 @@ export function ProductCard({ product, onAdd, inCart }) {
 }
 
 // A bottom sheet / dialog, or with `inline` the desktop sidebar (always open while there's an order).
+// Two steps so it fits without scrolling: the order and its date, then the contact details.
 function Checkout({ cart, setCart, onClose, onDone, inline }) {
   const min = minDeliveryDate(todayIn(), cart.map((l) => l.product.lead_days))
   const [form, setForm] = useState({ customer_name: '', phone: '', delivery_date: min, notes: '' })
+  const [step, setStep] = useState('order')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
   const total = cart.reduce((s, l) => s + unitPrice(l.product, l.variant) * l.qty, 0)
+  const count = cart.reduce((n, l) => n + l.qty, 0)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   useEscape(onClose)
   // Removing an item can lower the minimum; adding one can raise it past the chosen date.
@@ -142,6 +145,7 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
 
   async function submit(e) {
     e.preventDefault()
+    if (step === 'order') return setStep('contact')
     setSending(true)
     setError('')
     const items = cart.map((l) => ({ product_id: l.product.id, variant_id: l.variant?.id ?? null, qty: l.qty }))
@@ -157,21 +161,36 @@ function Checkout({ cart, setCart, onClose, onDone, inline }) {
 
   const body = (
     <form onSubmit={submit}>
-      <div className="row"><h2>Tu pedido</h2>{!inline && <button type="button" className="ghost" onClick={onClose}>Cerrar</button>}</div>
-      {cart.map((l) => (
-        <div key={l.key} className="row line">
-          <span>{l.qty} × {l.product.name}{l.variant ? ` (${l.variant.name})` : ''}</span>
-          <span>{money(unitPrice(l.product, l.variant) * l.qty)}</span>
-          <button type="button" className="icon" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label="Quitar">✕</button>
-        </div>
-      ))}
-      <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
-      <label>Nombre<input required value={form.customer_name} onChange={set('customer_name')} /></label>
-      <label>Teléfono<input required type="tel" value={form.phone} onChange={set('phone')} /></label>
-      <label>Fecha de entrega<input required type="date" min={min} value={date} onChange={set('delivery_date')} /></label>
-      <label>Notas (dirección, horario, etc.)<textarea value={form.notes} onChange={set('notes')} /></label>
-      {error && <p className="error">{error}</p>}
-      <button disabled={sending || cart.length === 0}>{sending ? 'Enviando…' : 'Confirmar pedido'}</button>
+      <div className="row">
+        <h2>{step === 'order' ? 'Tu pedido' : 'Tus datos'}</h2>
+        {!inline && <button type="button" className="ghost" onClick={onClose}>Cerrar</button>}
+      </div>
+      {step === 'order' ? (
+        <>
+          {cart.map((l) => (
+            <div key={l.key} className="row line">
+              <span>{l.qty} × {l.product.name}{l.variant ? ` (${l.variant.name})` : ''}</span>
+              <span>{money(unitPrice(l.product, l.variant) * l.qty)}</span>
+              <button type="button" className="icon" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label="Quitar">✕</button>
+            </div>
+          ))}
+          <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
+          <label>Fecha de entrega<input required type="date" min={min} value={date} onChange={set('delivery_date')} /></label>
+          <button disabled={cart.length === 0}>Continuar</button>
+        </>
+      ) : (
+        <>
+          <div className="summary">
+            <span>{count === 1 ? '1 producto' : `${count} productos`} · <strong>{money(total)}</strong><br />Entrega el {longDate(date)}</span>
+            <button type="button" className="ghost" onClick={() => setStep('order')}>Editar</button>
+          </div>
+          <label>Nombre<input required autoFocus value={form.customer_name} onChange={set('customer_name')} /></label>
+          <label>Teléfono<input required type="tel" value={form.phone} onChange={set('phone')} /></label>
+          <label>Notas (dirección, horario, etc.)<textarea value={form.notes} onChange={set('notes')} /></label>
+          {error && <p className="error">{error}</p>}
+          <button disabled={sending || cart.length === 0}>{sending ? 'Enviando…' : 'Confirmar pedido'}</button>
+        </>
+      )}
     </form>
   )
   return inline ? <aside className="side">{body}</aside> : <div className="sheet">{body}</div>

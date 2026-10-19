@@ -96,6 +96,8 @@ button.icon.delete:hover { color: var(--danger); }
 .sheet .line > span:first-child { flex: 1; }
 .sheet .total { padding: 12px 0 20px; }
 .sheet form > button:last-child { width: 100%; min-height: 52px; }
+.summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin-bottom: 16px; border-radius: 12px; background: var(--well); font-size: .95em; }
+.summary button { min-height: 36px; padding: 6px 14px; }
 
 .done { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding-top: 20px; padding-bottom: 24px; }
 .done h1 { margin: 0; }
@@ -226,7 +228,8 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
 
 /* Desktop order sidebar: fixed to the right edge, full height. The shop keeps its width and re-centers in the space left. */
 .shop { transition: padding-right .25s ease; }
-.shop.with-side { padding-right: 340px; }
+/* Only as much as needed: 960 page + 24 gap clear of the sidebar; on wide screens nothing moves. */
+.shop.with-side { padding-right: clamp(0px, 1708px - 100vw, 340px); }
 .side { position: fixed; top: 0; right: 0; bottom: 0; z-index: 3; width: 340px; overflow-y: auto; background: var(--card); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgb(44 44 45 / .06); padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); animation: side-in .25s ease; }
 @keyframes side-in { from { transform: translateX(100%); } }
 .side .line { padding: 8px 0; border-bottom: 1px solid var(--line); margin: 0; flex-wrap: nowrap; }
