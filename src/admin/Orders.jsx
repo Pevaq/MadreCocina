@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase, money, longDate } from '../lib.js'
+import { supabase, money, longDate, useEscape } from '../lib.js'
 import { todayIn, addDays } from '../../supabase/functions/_shared/order.js'
 import TrashIcon from './TrashIcon.jsx'
 
@@ -118,6 +118,7 @@ function OrderRow({ order, onOpen, onUpdate, onRemove }) {
 function OrderDetail({ order, onClose, onUpdate, onRemove }) {
   const [amount, setAmount] = useState(order.amount_received ?? order.total)
   const phone = order.phone.replace(/\D/g, '')
+  useEscape(onClose)
   const saveAmount = () => Number(amount) !== Number(order.amount_received) && onUpdate(order, { amount_received: Number(amount) })
 
   return (

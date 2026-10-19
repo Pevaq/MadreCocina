@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)
@@ -17,4 +18,13 @@ export function hideSplash() {
   if (!el) return
   el.classList.add('out')
   setTimeout(() => el.remove(), 400)
+}
+
+// Closes a sheet/modal with the Escape key (desktop).
+export function useEscape(onClose) {
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose()
+    addEventListener('keydown', onKey)
+    return () => removeEventListener('keydown', onKey)
+  }, [onClose])
 }

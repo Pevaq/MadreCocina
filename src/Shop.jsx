@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase, imageUrl, money, longDate, hideSplash } from './lib.js'
+import { supabase, imageUrl, money, longDate, hideSplash, useEscape } from './lib.js'
 import { unitPrice, todayIn, minDeliveryDate } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
@@ -136,6 +136,7 @@ function Checkout({ cart, setCart, onClose, onDone }) {
   const [sending, setSending] = useState(false)
   const total = cart.reduce((s, l) => s + unitPrice(l.product, l.variant) * l.qty, 0)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  useEscape(onClose)
   // Removing an item can lower the minimum; adding one can raise it past the chosen date.
   const date = form.delivery_date < min ? min : form.delivery_date
 
