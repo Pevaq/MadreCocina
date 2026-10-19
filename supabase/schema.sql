@@ -102,8 +102,19 @@ begin
 end $$;
 create trigger restock after delete on orders for each row execute function restock_cancelled_order();
 
--- Access: the public reads the active catalog; only the logged-in admin touches anything else.
+-- Access: the public reads the active catalog; only the users listed in admins touch anything else.
+-- Being logged in is not enough: if sign-ups get turned on by mistake, a new account still sees nothing.
 -- Orders are inserted by the place-order function (service role), never directly by the public.
+-- Add an admin: insert into admins select id from auth.users where email = '<email>';
+create table admins (user_id uuid primary key references auth.users on delete cascade);
+alter table admins enable row level security;  -- no policies: only is_admin() and the SQL editor read it
+
+create function is_admin() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from admins where user_id = auth.uid())
+$$;
+revoke execute on function is_admin() from public, anon;
+grant execute on function is_admin() to authenticated;
+
 alter table settings enable row level security;
 alter table categories enable row level security;
 alter table products enable row level security;
@@ -113,18 +124,18 @@ alter table orders enable row level security;
 grant select on settings, categories, products, variants to anon;
 grant all on settings, categories, products, variants, orders to authenticated;
 
-create policy "public read" on settings for select to anon using (true);
-create policy "public read" on categories for select to anon using (true);
-create policy "public read" on products for select to anon using (active);
-create policy "public read" on variants for select to anon using (active);
+create policy "public read" on settings for select to anon, authenticated using (true);
+create policy "public read" on categories for select to anon, authenticated using (true);
+create policy "public read" on products for select to anon, authenticated using (active);
+create policy "public read" on variants for select to anon, authenticated using (active);
 
-create policy "admin" on settings for all to authenticated using (true) with check (true);
-create policy "admin" on categories for all to authenticated using (true) with check (true);
-create policy "admin" on products for all to authenticated using (true) with check (true);
-create policy "admin" on variants for all to authenticated using (true) with check (true);
-create policy "admin" on orders for all to authenticated using (true) with check (true);
+create policy "admin" on settings for all to authenticated using (is_admin()) with check (is_admin());
+create policy "admin" on categories for all to authenticated using (is_admin()) with check (is_admin());
+create policy "admin" on products for all to authenticated using (is_admin()) with check (is_admin());
+create policy "admin" on variants for all to authenticated using (is_admin()) with check (is_admin());
+create policy "admin" on orders for all to authenticated using (is_admin()) with check (is_admin());
 
 -- Product images: public to view, only the admin uploads/deletes.
 insert into storage.buckets (id, name, public) values ('products', 'products', true);
-create policy "admin upload" on storage.objects for insert to authenticated with check (bucket_id = 'products');
-create policy "admin delete" on storage.objects for delete to authenticated using (bucket_id = 'products');
+create policy "admin upload" on storage.objects for insert to authenticated with check (bucket_id = 'products' and public.is_admin());
+create policy "admin delete" on storage.objects for delete to authenticated using (bucket_id = 'products' and public.is_admin());
