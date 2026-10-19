@@ -30,13 +30,15 @@ export default function Shop() {
       : [...c, { key, product, variant, qty }]
   })
 
+  // Hooks before the early return: a hook after it crashes React when the order is done.
+  const wide = useMedia('(min-width: 1100px)')
   if (done) return <Done order={done} settings={settings} onBack={() => setDone(null)} />
 
   const shown = products.filter((p) => !category || p.category_id === category)
   const count = cart.reduce((n, l) => n + l.qty, 0)
   const wa = whatsapp(settings)
   // Desktop: the order lives in a sidebar next to the catalog instead of a dialog.
-  const side = useMedia('(min-width: 1100px)') && count > 0
+  const side = wide && count > 0
   const checkoutProps = { cart, setCart, onClose: () => setCheckout(false), onDone: (order) => { setCart([]); setCheckout(false); setDone(order) } }
 
   return (
