@@ -193,6 +193,10 @@ button.ghost.danger { background: transparent; color: var(--danger); border-colo
   .editor > .preview { grid-column: 2; grid-row: 1 / span 20; position: sticky; top: 16px; }
 }
 .editor > .row:first-child { margin-bottom: 20px; }
+.editor.solo { display: block; max-width: 640px; }  /* no preview column (Nuevo pedido) */
+.order-line { display: grid; grid-template-columns: minmax(0, 1fr) 72px auto 44px; gap: 8px; align-items: center; margin-bottom: 10px; }
+.order-line > select:nth-of-type(2) { grid-column: 1; grid-row: 2; }
+.order-line > span { white-space: nowrap; text-align: right; }
 .box { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 16px; margin: 0 0 16px; min-width: 0; }
 .box h3 { margin: 0 0 12px; font-size: 1.05rem; }
 .box label:last-child, .box > p:last-child { margin-bottom: 0; }

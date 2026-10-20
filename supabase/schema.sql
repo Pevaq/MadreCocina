@@ -53,16 +53,23 @@ create table orders (
   wholesale boolean not null default false,  -- "Precio mayorista": the admin types what was actually charged
   amount_received numeric(12,2),    -- what was charged: the total, or the typed amount for wholesale
   delivered_at timestamptz,
-  ip text                           -- customer's IP (from place-order), only for the per-IP order limit
+  ip text,                          -- customer's IP (from place-order), only for the per-IP order limit
+  -- Where the order came from: the shop, or loaded by the admin for orders taken elsewhere.
+  source text not null default 'web' check (source in ('web', 'whatsapp', 'instagram', 'presencial', 'otro'))
 );
 
 -- Takes the stock and saves the order in one transaction, so two customers can't both get the last unit.
--- Only the place-order function (service role) calls it. Raises 'out_of_stock:<product id>'.
+-- Called by place-order (service role) and by the admin from the backoffice ("Nuevo pedido": no IP, so no limit).
+-- Security invoker: the admin's RLS policies apply. Raises 'out_of_stock:<product id>'.
 create function create_order(o jsonb) returns bigint language plpgsql set search_path = public as $$
 declare
   line record;
   new_id bigint;
 begin
+  -- Nested so the service role never calls is_admin() (it has no grant on it).
+  if current_user <> 'service_role' then
+    if not is_admin() then raise exception 'forbidden'; end if;
+  end if;
   -- Max 5 orders per IP per hour (anti-spam; Turnstile stops bots, this stops a person mashing the button).
   -- The lock makes concurrent orders from one IP count one at a time. Deleted orders don't count.
   if o->>'ip' is not null then
@@ -79,13 +86,13 @@ begin
     update products set stock = stock - line.qty where id = line.id and stock >= line.qty;
     if not found then raise exception 'out_of_stock:%', line.id; end if;
   end loop;
-  insert into orders (customer_name, phone, notes, delivery_date, items, total, ip)
-  values (o->>'customer_name', o->>'phone', o->>'notes', (o->>'delivery_date')::date, o->'items', (o->>'total')::numeric, o->>'ip')
+  insert into orders (customer_name, phone, notes, delivery_date, items, total, ip, source)
+  values (o->>'customer_name', o->>'phone', o->>'notes', (o->>'delivery_date')::date, o->'items', (o->>'total')::numeric, o->>'ip', coalesce(o->>'source', 'web'))
   returning id into new_id;
   return new_id;
 end $$;
-revoke execute on function create_order(jsonb) from public, anon, authenticated;
-grant execute on function create_order(jsonb) to service_role;
+revoke execute on function create_order(jsonb) from public, anon;
+grant execute on function create_order(jsonb) to service_role, authenticated;
 
 -- Deleting an undelivered order = cancelling it: its stock goes back. Delivered orders keep theirs.
 create function restock_cancelled_order() returns trigger language plpgsql set search_path = public as $$

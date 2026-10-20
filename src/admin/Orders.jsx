@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react'
 import { supabase, money, longDate, useDialog } from '../lib.js'
 import { todayIn, addDays } from '../../supabase/functions/_shared/order.js'
 import TrashIcon from './TrashIcon.jsx'
+import NewOrder from './NewOrder.jsx'
 
 const itemsText = (items) => items.map((l) => `${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join(', ')
 
 // Order progression. Any step can be skipped; "Entregado" moves it to Finalizados.
 const STATUSES = { pending: 'Recibido', paid: 'Pagado', preparing: 'En preparación', ready: 'Listo', delivered: 'Entregado' }
+
+// orders.source: the shop, or loaded by hand from the backoffice ("Nuevo pedido").
+const SOURCES = { web: 'Web', whatsapp: 'WhatsApp', instagram: 'Instagram', presencial: 'En persona', otro: 'Otro' }
 
 const dayTitle = (iso, today, pending) =>
   pending && iso < today ? `Atrasado · ${longDate(iso)}`
@@ -19,6 +23,7 @@ export default function Orders({ status }) {
   const [orders, setOrders] = useState([])
   const [error, setError] = useState('')
   const [openId, setOpenId] = useState(null)
+  const [creating, setCreating] = useState(false)
   const pending = status === 'pending'
 
   const load = () => {
@@ -56,8 +61,8 @@ export default function Orders({ status }) {
   function exportCsv() {
     // A leading ' stops Excel/Sheets from running a customer-typed name like =HYPERLINK(...) as a formula.
     const cell = (v) => `"${String(v ?? '').replace(/^[=+\-@\t\r]/, "'$&").replaceAll('"', '""')}"`
-    const rows = [['Pedido', 'Fecha entrega', 'Cliente', 'Productos', 'Total', 'Mayorista', 'Monto cobrado']]
-      .concat(orders.map((o) => [o.id, o.delivery_date, o.customer_name, itemsText(o.items), o.total, o.wholesale ? 'Sí' : 'No', o.amount_received]))
+    const rows = [['Pedido', 'Fecha entrega', 'Canal', 'Cliente', 'Productos', 'Total', 'Mayorista', 'Monto cobrado']]
+      .concat(orders.map((o) => [o.id, o.delivery_date, SOURCES[o.source], o.customer_name, itemsText(o.items), o.total, o.wholesale ? 'Sí' : 'No', o.amount_received]))
     // BOM so Excel/Sheets read accents correctly.
     const blob = new Blob(['﻿' + rows.map((r) => r.map(cell).join(',')).join('\n')], { type: 'text/csv' })
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'pedidos-finalizados.csv' })
@@ -70,9 +75,12 @@ export default function Orders({ status }) {
   const today = todayIn()
   const days = [...new Set(orders.map((o) => o.delivery_date))]
 
+  if (creating) return <NewOrder sources={SOURCES} onClose={() => { setCreating(false); load() }} />
+
   return (
     <section>
       {error && <p className="error" role="alert">{error}</p>}
+      {pending && <button onClick={() => setCreating(true)}>+ Nuevo pedido</button>}
       {!pending && orders.length > 0 && (
         <div className="row"><span>Total cobrado: <strong>{money(received)}</strong></span><button onClick={exportCsv}>Exportar CSV</button></div>
       )}
@@ -109,7 +117,7 @@ function OrderRow({ order, onOpen, onUpdate, onRemove }) {
       {/* Changing the status must not also open the detail. */}
       <div className="row" onClick={(e) => e.stopPropagation()}>
         <StatusSelect order={order} onUpdate={onUpdate} />
-        <span className="muted">{order.wholesale && 'Mayorista · '}#{order.id}</span>
+        <span className="muted">{order.source !== 'web' && `${SOURCES[order.source]} · `}{order.wholesale && 'Mayorista · '}#{order.id}</span>
         <button type="button" className="icon delete" onClick={() => onRemove(order)} aria-label={`Borrar pedido #${order.id}`}><TrashIcon /></button>
       </div>
     </article>
@@ -135,7 +143,8 @@ function OrderDetail({ order, onClose, onUpdate, onRemove }) {
           <dt>Estado</dt><dd><StatusSelect order={order} onUpdate={onUpdate} /></dd>
           <dt>Entrega</dt><dd>{longDate(order.delivery_date)}</dd>
           <dt>Cliente</dt><dd>{order.customer_name}</dd>
-          <dt>Teléfono</dt><dd><a href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer">{order.phone}</a></dd>
+          <dt>Teléfono</dt><dd>{phone ? <a href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer">{order.phone}</a> : '—'}</dd>
+          <dt>Canal</dt><dd>{SOURCES[order.source]}</dd>
           {order.notes && <><dt>Notas</dt><dd>{order.notes}</dd></>}
           <dt>Pedido el</dt><dd>{new Date(order.created_at).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</dd>
         </dl>
