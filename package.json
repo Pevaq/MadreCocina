@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test supabase/functions/_shared/order.test.js",
+    "test": "node --test supabase/functions/_shared/order.test.js src/admin/importOrders.test.js",
     "lint": "eslint src"
   },
   "dependencies": {

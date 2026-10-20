@@ -3,6 +3,7 @@ import { supabase, money, longDate, useDialog } from '../lib.js'
 import { todayIn, addDays } from '../../supabase/functions/_shared/order.js'
 import TrashIcon from './TrashIcon.jsx'
 import NewOrder from './NewOrder.jsx'
+import ImportOrders from './ImportOrders.jsx'
 
 const itemsText = (items) => items.map((l) => `${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join(', ')
 
@@ -24,6 +25,7 @@ export default function Orders({ status }) {
   const [error, setError] = useState('')
   const [openId, setOpenId] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
   const pending = status === 'pending'
 
   const load = () => {
@@ -76,13 +78,20 @@ export default function Orders({ status }) {
   const days = [...new Set(orders.map((o) => o.delivery_date))]
 
   if (creating) return <NewOrder sources={SOURCES} onClose={() => { setCreating(false); load() }} />
+  if (importing) return <ImportOrders sources={SOURCES} onClose={() => { setImporting(false); load() }} />
 
   return (
     <section>
       {error && <p className="error" role="alert">{error}</p>}
       {pending && <button onClick={() => setCreating(true)}>+ Nuevo pedido</button>}
-      {!pending && orders.length > 0 && (
-        <div className="row"><span>Total cobrado: <strong>{money(received)}</strong></span><button onClick={exportCsv}>Exportar CSV</button></div>
+      {!pending && (
+        <div className="row">
+          <span>{orders.length > 0 && <>Total cobrado: <strong>{money(received)}</strong></>}</span>
+          <div className="row">
+            <button className="ghost" onClick={() => setImporting(true)}>Importar pedidos</button>
+            {orders.length > 0 && <button onClick={exportCsv}>Exportar CSV</button>}
+          </div>
+        </div>
       )}
       {orders.length === 0 && <p className="muted">No hay pedidos.</p>}
       {days.map((day) => (
