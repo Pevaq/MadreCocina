@@ -104,6 +104,10 @@ button.icon.delete:hover { color: var(--danger); }
 .sheet .line { padding: 8px 0; border-bottom: 1px solid var(--line); margin: 0; flex-wrap: nowrap; }
 .sheet .line > span:first-child { flex: 1; }
 .sheet .total { padding: 12px 0 20px; }
+/* Order lines: name, − n +, price, ✕ fit on one line in the sheet and the 340px sidebar. */
+.sheet .line, .side .line { gap: 8px; }
+.line .qty button { min-height: 40px; }
+.line > span:nth-of-type(2) { white-space: nowrap; }
 .sheet form > button:last-child { width: 100%; min-height: 52px; }
 .summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin-bottom: 16px; border-radius: 12px; background: var(--well); font-size: .95em; }
 .summary button { min-height: 36px; padding: 6px 14px; }

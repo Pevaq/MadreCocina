@@ -174,6 +174,9 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
   const total = cart.reduce((s, l) => s + unitPrice(l.product, l.variant) * l.qty, 0)
   const count = cart.reduce((n, l) => n + l.qty, 0)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  const setQty = (line, qty) => setCart(cart.map((l) => (l === line ? { ...l, qty } : l)))
+  // Stock is per product, so "+" counts every line of that product (other variants too).
+  const canAdd = (line) => line.qty < 99 && cart.reduce((n, l) => n + (l.product.id === line.product.id ? l.qty : 0), 0) < line.product.stock
   const dialog = useDialog(onClose, !inline)
   // After "Editar" its button is gone: put focus back at the top of the order step.
   const edited = useRef(false)
@@ -234,13 +237,22 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
       </div>
       {step === 'order' ? (
         <>
-          {cart.map((l) => (
-            <div key={l.key} className="row line">
-              <span>{l.qty} × {l.product.name}{l.variant ? ` (${l.variant.name})` : ''}</span>
-              <span>{money(unitPrice(l.product, l.variant) * l.qty)}</span>
-              <button type="button" className="icon" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label={`Quitar ${l.product.name}${l.variant ? ` (${l.variant.name})` : ''}`}>✕</button>
-            </div>
-          ))}
+          {cart.map((l) => {
+            const name = `${l.product.name}${l.variant ? ` (${l.variant.name})` : ''}`
+            return (
+              <div key={l.key} className="row line">
+                <span>{name}</span>
+                {/* aria-disabled, not disabled: a disabled button drops keyboard focus when it hits the limit. */}
+                <div className="qty">
+                  <button type="button" onClick={() => l.qty > 1 && setQty(l, l.qty - 1)} aria-disabled={l.qty <= 1} aria-label={`Uno menos de ${name} en tu pedido`}>−</button>
+                  <output aria-label={`Cantidad de ${name} en tu pedido`}>{l.qty}</output>
+                  <button type="button" onClick={() => canAdd(l) && setQty(l, l.qty + 1)} aria-disabled={!canAdd(l)} aria-label={`Uno más de ${name} en tu pedido`}>+</button>
+                </div>
+                <span>{money(unitPrice(l.product, l.variant) * l.qty)}</span>
+                <button type="button" className="icon" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label={`Quitar ${name}`}>✕</button>
+              </div>
+            )
+          })}
           <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
           <label>Fecha de entrega<input required type="date" min={min} max={maxDeliveryDate(todayIn())} value={date} onChange={set('delivery_date')} /></label>
           <button disabled={cart.length === 0}>Continuar</button>
