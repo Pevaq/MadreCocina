@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib.js'
+import { DEFAULT_READY_MESSAGE } from './whatsapp.js'
 
 export default function Settings() {
   const [s, setS] = useState(null)
@@ -7,10 +8,12 @@ export default function Settings() {
 
   useEffect(() => { supabase.from('settings').select().single().then(({ data }) => setS(data)) }, [])
   if (!s) return null
+  // Empty in the DB = the suggested text, so improvements to it reach her too.
+  const msgText = s.ready_message ?? DEFAULT_READY_MESSAGE
 
   async function save(e) {
     e.preventDefault()
-    const { error } = await supabase.from('settings').update({ ...s, whatsapp_number: s.whatsapp_number?.replace(/\D/g, ''), transfer_alias: s.transfer_alias?.trim() || null, transfer_holder: s.transfer_holder?.trim() || null }).eq('id', 1)
+    const { error } = await supabase.from('settings').update({ ...s, whatsapp_number: s.whatsapp_number?.replace(/\D/g, ''), transfer_alias: s.transfer_alias?.trim() || null, transfer_holder: s.transfer_holder?.trim() || null, ready_message: msgText.trim() && msgText.trim() !== DEFAULT_READY_MESSAGE ? msgText.trim() : null }).eq('id', 1)
     setMsg(error ? error.message : 'Guardado ✓')
   }
 
@@ -26,6 +29,13 @@ export default function Settings() {
         <h3>WhatsApp</h3>
         <label>Número (54 + 9 + código de área sin 0 + número sin 15, ej. 5492477123456)<input type="tel" value={s.whatsapp_number ?? ''} onChange={(e) => setS({ ...s, whatsapp_number: e.target.value })} /></label>
         <label className="check"><input type="checkbox" checked={s.whatsapp_on} onChange={(e) => setS({ ...s, whatsapp_on: e.target.checked })} /> Mostrar WhatsApp al cliente (botón flotante y al confirmar el pedido)</label>
+        <label>Mensaje de pedido listo
+          <textarea rows={7} value={msgText} onChange={(e) => setS({ ...s, ready_message: e.target.value })} />
+        </label>
+        <p className="muted">Se ofrece mandarlo cuando pasás un pedido a Listo. Se reemplazan solos: <code>{'{nombre}'}</code> (el nombre del cliente), <code>{'{tienda}'}</code> y <code>{'{productos}'}</code> (la lista del pedido).</p>
+        {s.ready_message != null && s.ready_message !== DEFAULT_READY_MESSAGE && (
+          <button type="button" className="ghost" onClick={() => setS({ ...s, ready_message: null })}>Volver al mensaje sugerido</button>
+        )}
       </section>
       <section className="box">
         <h3>Pago por transferencia</h3>

@@ -8,7 +8,8 @@ create table settings (
   email_on boolean not null default true,
   transfer_alias text,              -- shown to the customer after ordering, to pay by bank transfer
   transfer_holder text,             -- account holder (and bank) so the customer can check before sending
-  show_categories boolean not null default true  -- category pills in the shop; off while the catalog is small
+  show_categories boolean not null default true,  -- category pills in the shop; off while the catalog is small
+  ready_message text                -- WhatsApp text offered when an order goes to Listo; null = the suggested one in src/admin/whatsapp.js
 );
 insert into settings default values;
 
