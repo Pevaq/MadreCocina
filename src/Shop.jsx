@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase, imageUrl, money, longDate, hideSplash, useDialog, useMedia, TURNSTILE_SITE_KEY, loadTurnstile } from './lib.js'
-import { unitPrice, todayIn, minDeliveryDate, maxDeliveryDate, checkContact } from '../supabase/functions/_shared/order.js'
+import { supabase, imageUrl, money, longDate, hideSplash, useDialog, useMedia, TURNSTILE_SITE_KEY, loadTurnstile, DEFAULT_CLOSED_MESSAGE } from './lib.js'
+import { unitPrice, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, checkContact } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
   const [settings, setSettings] = useState(null)
@@ -46,13 +46,14 @@ export default function Shop() {
   // Hooks before the early return: a hook after it crashes React when the order is done.
   const wide = useMedia('(min-width: 1100px)')
   if (done) return <Done order={done} settings={settings} onBack={() => setDone(null)} />
+  if (settings?.closed) return <Closed settings={settings} />
 
   const shown = products.filter((p) => !category || p.category_id === category)
   const count = cart.reduce((n, l) => n + l.qty, 0)
   const wa = whatsapp(settings)
   // Desktop: the order lives in a sidebar next to the catalog instead of a dialog.
   const side = wide && count > 0
-  const checkoutProps = { cart, setCart, onStale: loadProducts, onClose: () => setCheckout(false), onDone: (order) => { setCart([]); setCheckout(false); setDone(order); loadProducts() } }
+  const checkoutProps = { cart, setCart, cutoff: settings?.order_cutoff, onStale: loadProducts, onClose: () => setCheckout(false), onDone: (order) => { setCart([]); setCheckout(false); setDone(order); loadProducts() } }
 
   return (
     <div className={`shop${side ? ' with-side' : ''}`}>
@@ -164,8 +165,10 @@ const Chevron = ({ left }) => (
 
 // A bottom sheet / dialog, or with `inline` the desktop sidebar (always open while there's an order).
 // Two steps so it fits without scrolling: the order and its date, then the contact details.
-function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
-  const min = minDeliveryDate(todayIn(), cart.map((l) => l.product.lead_days))
+function Checkout({ cart, setCart, cutoff, onStale, onClose, onDone, inline }) {
+  // Past the daily cutoff the order counts as placed tomorrow (place-order checks the same).
+  const lateOrder = orderDay(todayIn(), nowIn(), cutoff) !== todayIn()
+  const min = minDeliveryDate(orderDay(todayIn(), nowIn(), cutoff), cart.map((l) => l.product.lead_days))
   // website = honeypot: hidden from people, bots fill it and place-order rejects the order.
   const [form, setForm] = useState({ customer_name: '', phone: '', delivery_date: min, notes: '', website: '' })
   const [step, setStep] = useState('order')
@@ -254,7 +257,8 @@ function Checkout({ cart, setCart, onStale, onClose, onDone, inline }) {
             )
           })}
           <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
-          <label>Fecha de entrega<input required type="date" min={min} max={maxDeliveryDate(todayIn())} value={date} onChange={set('delivery_date')} /></label>
+          <label>Fecha de entrega<input required type="date" min={min} max={maxDeliveryDate(todayIn())} value={date} onChange={set('delivery_date')} aria-describedby={lateOrder ? 'cutoff-note' : undefined} /></label>
+          {lateOrder && <p id="cutoff-note" className="muted cutoff">Los pedidos de después de las {cutoff.slice(0, 5)} se cuentan desde mañana.</p>}
           <button disabled={cart.length === 0}>Continuar</button>
         </>
       ) : (
@@ -286,6 +290,20 @@ const whatsapp = (settings, text) =>
   settings?.whatsapp_on && settings.whatsapp_number
     ? `https://wa.me/${settings.whatsapp_number}${text ? `?text=${encodeURIComponent(text)}` : ''}`
     : null
+
+// Full screen while the owner has the shop closed (Ajustes): no catalog, her message, WhatsApp if it's on.
+function Closed({ settings }) {
+  const wa = whatsapp(settings)
+  return (
+    <main className="closed">
+      <header className="brand"><h1><img src="logo.svg" alt={settings.store_name} width="820" height="444" /></h1></header>
+      <img className="ill" src="galleta.svg" alt="" width="472" height="476" />
+      <h2>Volvemos pronto</h2>
+      <p>{settings.closed_message?.trim() || DEFAULT_CLOSED_MESSAGE}</p>
+      {wa && <a className="button" href={wa} target="_blank" rel="noreferrer">Escribinos por WhatsApp</a>}
+    </main>
+  )
+}
 
 // The order number is not shown: it would tell customers how many orders the store gets.
 function Done({ order, settings, onBack }) {

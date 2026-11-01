@@ -15,6 +15,9 @@ export const loadTurnstile = () => turnstile ??= new Promise((resolve, reject) =
 
 export const imageUrl =(path) => supabase.storage.from('products').getPublicUrl(path).data.publicUrl
 
+// Shown on the shop's closed screen while settings.closed_message is empty.
+export const DEFAULT_CLOSED_MESSAGE = 'Hoy no estamos tomando pedidos. ¡Volvé pronto!'
+
 // Always ARS: the store only sells in pesos.
 const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 export const money = (n) => fmt.format(n)

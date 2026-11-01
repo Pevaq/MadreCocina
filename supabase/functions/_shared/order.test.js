@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { unitPrice, addDays, minDeliveryDate, checkContact, isDate, maxDeliveryDate } from './order.js'
+import { unitPrice, addDays, minDeliveryDate, orderDay, nowIn, checkContact, isDate, maxDeliveryDate } from './order.js'
 
 test('variant price falls back to product price', () => {
   assert.equal(unitPrice({ price: 100 }, { price: null }), 100)
@@ -20,6 +20,18 @@ test('min date uses the longest lead time, not counting today', () => {
   assert.equal(minDeliveryDate('2026-10-17', [1]), '2026-10-19')
   assert.equal(minDeliveryDate('2026-10-17', [0]), '2026-10-17')
   assert.equal(minDeliveryDate('2026-10-17', []), '2026-10-17')
+})
+
+test('cutoff: from that time on, orders count as placed tomorrow', () => {
+  assert.equal(orderDay('2026-10-31', '17:59', '18:00'), '2026-10-31')
+  assert.equal(orderDay('2026-10-31', '18:00', '18:00'), '2026-11-01')
+  assert.equal(orderDay('2026-10-31', '23:30', '18:00:00'), '2026-11-01')  // Postgres time comes with seconds
+  assert.equal(orderDay('2026-10-31', '23:30', null), '2026-10-31')
+  assert.equal(orderDay('2026-10-31', '23:30', ''), '2026-10-31')
+  // Same-day product after 18 h: tomorrow. 2 days of notice: one more than before the cutoff.
+  assert.equal(minDeliveryDate(orderDay('2026-10-31', '19:00', '18:00'), [0]), '2026-11-01')
+  assert.equal(minDeliveryDate(orderDay('2026-10-31', '19:00', '18:00'), [2]), '2026-11-04')
+  assert.match(nowIn(), /^([01]\d|2[0-3]):[0-5]\d$/)
 })
 
 test('contact: valid input is tidied', () => {

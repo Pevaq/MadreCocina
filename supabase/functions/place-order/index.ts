@@ -1,7 +1,7 @@
 // Receives an order from the shop, recomputes prices from the database (never trusts the client),
-// checks the delivery date, takes the stock and saves it (create_order, one transaction) and emails the owner if email notifications are on.
+// checks the store is open and the delivery date (daily cutoff included), takes the stock and saves it (create_order, one transaction) and emails the owner if email notifications are on.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { unitPrice, todayIn, minDeliveryDate, maxDeliveryDate, isDate, checkContact, STORE_TZ } from '../_shared/order.js'
+import { unitPrice, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, isDate, checkContact, STORE_TZ } from '../_shared/order.js'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +17,12 @@ const fail = (e: unknown) => (console.error(e), json({ error: 'No se pudo enviar
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+
+  // The shop shows a closed screen, but a page left open (or a direct call) still lands here.
+  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const { data: settings, error: settingsError } = await db.from('settings').select('store_name, email_on, closed, order_cutoff').single()
+  if (settingsError) return fail(settingsError)
+  if (settings.closed) return json({ error: 'Por ahora no estamos tomando pedidos. Recargá la página para ver más.' }, 503)
 
   const body = await req.json().catch(() => null)
   const { contact, error: invalid } = checkContact(body ?? {})
@@ -40,7 +46,6 @@ Deno.serve(async (req) => {
     if (!check?.success) return json({ error: 'No pudimos verificar que no seas un robot. Probá de nuevo.' }, 403)
   }
 
-  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const { data: products, error } = await db
     .from('products')
     .select('id, name, price, lead_days, stock, variants(id, name, price, active)')
@@ -57,7 +62,7 @@ Deno.serve(async (req) => {
     lines.push({ product_id: product.id, name: product.name, variant: variant?.name ?? null, qty: i.qty, price: unitPrice(product, variant), lead: product.lead_days })
   }
 
-  const min = minDeliveryDate(todayIn(TZ), lines.map((l) => l.lead))
+  const min = minDeliveryDate(orderDay(todayIn(TZ), nowIn(TZ), settings.order_cutoff), lines.map((l) => l.lead))
   if (delivery_date < min) return json({ error: `La fecha mínima de entrega es ${min}.` }, 400)
   if (delivery_date > maxDeliveryDate(todayIn(TZ))) return json({ error: 'Se puede pedir hasta con 3 meses de anticipación.' }, 400)
 
@@ -78,8 +83,7 @@ Deno.serve(async (req) => {
   const order = { id }
 
   // The order is already saved: an email failure is logged, not shown to the customer.
-  const { data: settings } = await db.from('settings').select('store_name, email_on').single()
-  if (settings?.email_on) {
+  if (settings.email_on) {
     const detail = orderItems.map((l) => `- ${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}: $${l.price * l.qty}`).join('\n')
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',

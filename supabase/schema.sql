@@ -9,7 +9,10 @@ create table settings (
   transfer_alias text,              -- shown to the customer after ordering, to pay by bank transfer
   transfer_holder text,             -- account holder (and bank) so the customer can check before sending
   show_categories boolean not null default true,  -- category pills in the shop; off while the catalog is small
-  ready_message text                -- WhatsApp text offered when an order goes to Listo; null = the suggested one in src/admin/whatsapp.js
+  ready_message text,               -- WhatsApp text offered when an order goes to Listo; null = the suggested one in src/admin/whatsapp.js
+  closed boolean not null default false,  -- shop closed: full-screen message, place-order rejects (manual orders still work)
+  closed_message text,              -- shown while closed; null = DEFAULT_CLOSED_MESSAGE in src/lib.js
+  order_cutoff time                 -- from this time (Buenos Aires) orders count as placed tomorrow; null = no cutoff
 );
 insert into settings default values;
 

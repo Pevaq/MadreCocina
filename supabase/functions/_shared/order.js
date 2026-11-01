@@ -16,6 +16,14 @@ export function addDays(isoDate, days) {
   return d.toISOString().slice(0, 10)
 }
 
+// "HH:MM" (24 h) right now in the given time zone.
+export const nowIn = (timeZone = STORE_TZ) =>
+  new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date())
+
+// Daily cutoff (settings.order_cutoff, "HH:MM"; null = none): from that time on, an order counts as
+// placed tomorrow, so every minimum date moves one day (same-day products: tomorrow).
+export const orderDay = (today, now, cutoff) => (cutoff && now >= cutoff.slice(0, 5) ? addDays(today, 1) : today)
+
 // The earliest date allowed is set by the product that needs the most notice.
 // Today doesn't count: 2 days ordered on Sunday 18 → Wednesday 21. 0 days = today.
 export function minDeliveryDate(today, leadDays) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib.js'
+import { supabase, DEFAULT_CLOSED_MESSAGE } from '../lib.js'
 import { DEFAULT_READY_MESSAGE } from './whatsapp.js'
 
 export default function Settings() {
@@ -10,15 +10,26 @@ export default function Settings() {
   if (!s) return null
   // Empty in the DB = the suggested text, so improvements to it reach her too.
   const msgText = s.ready_message ?? DEFAULT_READY_MESSAGE
+  const closedText = s.closed_message ?? DEFAULT_CLOSED_MESSAGE
 
   async function save(e) {
     e.preventDefault()
-    const { error } = await supabase.from('settings').update({ ...s, whatsapp_number: s.whatsapp_number?.replace(/\D/g, ''), transfer_alias: s.transfer_alias?.trim() || null, transfer_holder: s.transfer_holder?.trim() || null, ready_message: msgText.trim() && msgText.trim() !== DEFAULT_READY_MESSAGE ? msgText.trim() : null }).eq('id', 1)
+    const { error } = await supabase.from('settings').update({ ...s, whatsapp_number: s.whatsapp_number?.replace(/\D/g, ''), transfer_alias: s.transfer_alias?.trim() || null, transfer_holder: s.transfer_holder?.trim() || null, ready_message: msgText.trim() && msgText.trim() !== DEFAULT_READY_MESSAGE ? msgText.trim() : null, closed_message: closedText.trim() && closedText.trim() !== DEFAULT_CLOSED_MESSAGE ? closedText.trim() : null, order_cutoff: s.order_cutoff || null }).eq('id', 1)
     setMsg(error ? error.message : 'Guardado ✓')
   }
 
   return (
     <form className="settings" onSubmit={save}>
+      <section className="box">
+        <h3>Pedidos en la tienda</h3>
+        <label className="check"><input type="checkbox" checked={s.closed} onChange={(e) => setS({ ...s, closed: e.target.checked })} /> Tienda cerrada: no se pueden hacer pedidos</label>
+        <p className="muted">Mientras esté tildado, la tienda muestra solo este mensaje a pantalla completa. Los pedidos que cargás vos desde Pedidos siguen funcionando.</p>
+        <label>Mensaje para los clientes<textarea rows={3} value={closedText} onChange={(e) => setS({ ...s, closed_message: e.target.value })} /></label>
+        <label>Horario límite para pedir en el día
+          <input type="time" value={s.order_cutoff?.slice(0, 5) ?? ''} onChange={(e) => setS({ ...s, order_cutoff: e.target.value })} />
+        </label>
+        <p className="muted">Desde esa hora, los pedidos se cuentan como hechos al día siguiente: lo que se podía pedir para hoy pasa a mañana, y los productos con anticipación se corren un día. Vacío = sin horario límite.</p>
+      </section>
       <section className="box">
         <h3>Tienda</h3>
         <label>Nombre de la tienda<input required value={s.store_name} onChange={(e) => setS({ ...s, store_name: e.target.value })} /></label>
