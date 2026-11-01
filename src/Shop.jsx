@@ -291,16 +291,14 @@ const whatsapp = (settings, text) =>
     ? `https://wa.me/${settings.whatsapp_number}${text ? `?text=${encodeURIComponent(text)}` : ''}`
     : null
 
-// Full screen while the owner has the shop closed (Ajustes): no catalog, her message, WhatsApp if it's on.
+// Full screen while the owner has the shop closed (Ajustes): no catalog, just her message (no WhatsApp: closed means no contact).
 function Closed({ settings }) {
-  const wa = whatsapp(settings)
   return (
     <main className="closed">
       <header className="brand"><h1><img src="logo.svg" alt={settings.store_name} width="820" height="444" /></h1></header>
       <img className="ill" src="galleta.svg" alt="" width="472" height="476" />
       <h2>Volvemos pronto</h2>
       <p>{settings.closed_message?.trim() || DEFAULT_CLOSED_MESSAGE}</p>
-      {wa && <a className="button" href={wa} target="_blank" rel="noreferrer">Escribinos por WhatsApp</a>}
     </main>
   )
 }

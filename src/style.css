@@ -135,7 +135,6 @@ button.icon.delete:hover { color: var(--danger); }
 .closed .ill { position: relative; width: 148px; height: auto; margin-top: -74px; padding: 14px; border-radius: 50%; background: var(--bg); }
 .closed h2 { font-size: 2.5rem; line-height: 1.1; margin: 16px 0 12px; }
 .closed p { max-width: 34ch; font-size: 1.1em; white-space: pre-line; margin-bottom: 24px; }
-.closed .button { min-width: 240px; }
 .closed::after { content: 'SIN CONSERVANTES · PRODUCTO LOCAL'; margin-top: auto; padding-top: 40px; color: var(--muted); font-size: .8em; font-weight: 700; letter-spacing: .06em; }
 .cutoff { margin: -8px 0 16px; font-size: .9em; }
 .settings input[type=time] { width: 150px; }
