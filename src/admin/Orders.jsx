@@ -26,6 +26,7 @@ export default function Orders({ status }) {
   const [error, setError] = useState('')
   const [openId, setOpenId] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState(null)  // order being edited; back to its detail when done
   const [importing, setImporting] = useState(false)
   const [settings, setSettings] = useState(null)
   const [notify, setNotify] = useState(null)  // order just marked Listo: offer to tell the customer
@@ -87,6 +88,7 @@ export default function Orders({ status }) {
   const days = [...new Set(orders.map((o) => o.delivery_date))]
 
   if (creating) return <NewOrder sources={SOURCES} onClose={() => { setCreating(false); load() }} />
+  if (editing) return <NewOrder sources={SOURCES} order={editing} onClose={() => { setEditing(null); load() }} />
   if (importing) return <ImportOrders sources={SOURCES} onClose={() => { setImporting(false); load() }} />
 
   return (
@@ -111,7 +113,7 @@ export default function Orders({ status }) {
           ))}
         </div>
       ))}
-      {open && <OrderDetail key={open.id} order={open} onClose={() => setOpenId(null)} onUpdate={update} onRemove={remove} />}
+      {open && <OrderDetail key={open.id} order={open} onClose={() => setOpenId(null)} onUpdate={update} onRemove={remove} onEdit={() => setEditing(open)} />}
       {notify && <ReadyNotice key={notify.id} order={notify} settings={settings} onClose={() => setNotify(null)} />}
     </section>
   )
@@ -143,7 +145,7 @@ function OrderRow({ order, onOpen, onUpdate, onRemove }) {
   )
 }
 
-function OrderDetail({ order, onClose, onUpdate, onRemove }) {
+function OrderDetail({ order, onClose, onUpdate, onRemove, onEdit }) {
   const [amount, setAmount] = useState(order.amount_received ?? order.total)
   const phone = order.phone.replace(/\D/g, '') && waNumber(order.phone)
   const saveAmount = () => amount !== '' && Number(amount) !== Number(order.amount_received) && onUpdate(order, { amount_received: Number(amount) })
@@ -192,7 +194,11 @@ function OrderDetail({ order, onClose, onUpdate, onRemove }) {
           )}
         </div>
 
-        <button type="button" className="ghost danger" onClick={() => onRemove(order)}>Borrar pedido</button>
+        <div className="row detail-actions">
+          {/* Delivered orders are history: what was sold and charged stays as it was. */}
+          {order.status !== 'delivered' && <button type="button" onClick={() => { if (order.wholesale) saveAmount(); onEdit() }}>Editar pedido</button>}
+          <button type="button" className="ghost danger" onClick={() => onRemove(order)}>Borrar pedido</button>
+        </div>
       </div>
     </div>
   )

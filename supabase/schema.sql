@@ -139,6 +139,37 @@ $$;
 revoke execute on function add_stock(bigint, int) from public, anon;
 grant execute on function add_stock(bigint, int) to authenticated;
 
+-- Editing an order that isn't delivered yet (backoffice): customer data, date and items. Stock moves by the
+-- difference per product (2 → 3 cookies takes 1 more; removing a line gives its units back), all in one
+-- transaction with the order update, like create_order. Lines without product_id (old orders) don't touch stock.
+-- Raises 'out_of_stock:<product id>', 'not_editable' (delivered or gone) or 'forbidden'.
+create function update_order(order_id bigint, o jsonb) returns void language plpgsql set search_path = public as $$
+declare
+  old_items jsonb;
+  line record;
+begin
+  if not is_admin() then raise exception 'forbidden'; end if;
+  select items into old_items from orders where id = order_id and status <> 'delivered' for update;
+  if not found then raise exception 'not_editable'; end if;
+  -- Ordered by id like create_order, so concurrent orders lock products in the same order (no deadlocks).
+  for line in
+    select id, sum(qty) as delta from (
+      select (x->>'product_id')::bigint as id, (x->>'qty')::int as qty from jsonb_array_elements(o->'items') x where x ? 'product_id'
+      union all
+      select (x->>'product_id')::bigint, -(x->>'qty')::int from jsonb_array_elements(old_items) x where x ? 'product_id'
+    ) d group by id having sum(qty) <> 0 order by id
+  loop
+    update products set stock = stock - line.delta where id = line.id and stock >= line.delta;
+    if not found and line.delta > 0 then raise exception 'out_of_stock:%', line.id; end if;
+  end loop;
+  update orders set
+    customer_name = o->>'customer_name', phone = o->>'phone', notes = o->>'notes',
+    delivery_date = (o->>'delivery_date')::date, items = o->'items', total = (o->>'total')::numeric
+  where id = order_id;
+end $$;
+revoke execute on function update_order(bigint, jsonb) from public, anon;
+grant execute on function update_order(bigint, jsonb) to authenticated;
+
 -- Access: the public reads the active catalog; only the users listed in admins touch anything else.
 -- Being logged in is not enough: if sign-ups get turned on by mistake, a new account still sees nothing.
 -- Orders are inserted by the place-order function (service role), never directly by the public.

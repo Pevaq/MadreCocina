@@ -4,10 +4,17 @@ import { unitPrice, todayIn } from '../../supabase/functions/_shared/order.js'
 
 // Orders taken outside the shop (WhatsApp, Instagram, in person). Same table and stock as web orders,
 // so they follow the same statuses and land in the CSV. No lead-time or contact rules: the admin knows the customer.
-export default function NewOrder({ sources, onClose }) {
+// With `order`, edits one that isn't delivered (update_order moves the stock by the difference).
+export default function NewOrder({ sources, order, onClose }) {
   const [products, setProducts] = useState([])
-  const [o, setO] = useState({ source: 'whatsapp', customer_name: '', phone: '', delivery_date: todayIn(), notes: '' })
-  const [lines, setLines] = useState([{ product_id: '', variant_id: null, qty: 1 }])
+  const [o, setO] = useState(() => order
+    ? { source: order.source, customer_name: order.customer_name, phone: order.phone ?? '', delivery_date: order.delivery_date, notes: order.notes ?? '' }
+    : { source: 'whatsapp', customer_name: '', phone: '', delivery_date: todayIn(), notes: '' })
+  // Saved lines remember what they were (`was`): unchanged, they keep the price the customer saw.
+  // Lines from before items had product_id can't be matched to a product: they stay as they are (`fixed`).
+  const [lines, setLines] = useState(() => order
+    ? order.items.map((item) => (item.product_id ? { product_id: item.product_id, variant_id: null, qty: item.qty, was: item } : { fixed: item, qty: item.qty }))
+    : [{ product_id: '', variant_id: null, qty: 1 }])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setO({ ...o, [k]: e.target.value })
@@ -15,13 +22,19 @@ export default function NewOrder({ sources, onClose }) {
   // Hidden products too: friends may order something that isn't on the shop right now.
   useEffect(() => {
     supabase.from('products').select('id, name, price, stock, active, variants(id, name, price, active)').order('sort').order('name').order('id', { referencedTable: 'variants' })
-      .then(({ data }) => setProducts(data ?? []))
+      .then(({ data }) => {
+        setProducts(data ?? [])
+        // Saved items keep the variant's name, not its id: find it by name once the products are in.
+        setLines((ls) => ls.map((l) => (l.was ? { ...l, variant_id: data?.find((p) => p.id === l.product_id)?.variants.find((v) => v.name === l.was.variant)?.id ?? null } : l)))
+      })
   }, [])
 
   const full = lines.map((l) => {
+    if (l.fixed) return { ...l, price: l.fixed.price }
     const product = products.find((p) => p.id === l.product_id)
     const variant = product?.variants.find((v) => v.id === l.variant_id)
-    return { ...l, product, variant, price: product ? unitPrice(product, variant) : 0 }
+    const same = l.was && l.was.product_id === l.product_id && (l.was.variant ?? null) === (variant?.name ?? null)
+    return { ...l, product, variant, price: same ? l.was.price : product ? unitPrice(product, variant) : 0 }
   })
   const total = full.reduce((s, l) => s + l.price * l.qty, 0)
   const setLine = (i, change) => setLines(lines.map((l, j) => (j === i ? { ...l, ...change } : l)))
@@ -29,30 +42,41 @@ export default function NewOrder({ sources, onClose }) {
     const product = products.find((p) => p.id === id)
     setLine(i, { product_id: id, variant_id: product?.variants.find((v) => v.active)?.id ?? null })
   }
+  // In stock for this order: what's left plus what this order already holds (they come back on save).
+  const held = (id) => (order?.items ?? []).reduce((n, x) => n + (x.product_id === id ? x.qty : 0), 0)
+  const available = (p) => p.stock + held(p.id)
+  const productName = (id) => products.find((p) => p.id === id)?.name
 
   async function save(e) {
     e.preventDefault()
-    const chosen = full.filter((l) => l.product)
+    const chosen = full.filter((l) => l.product || l.fixed)
     if (!chosen.length) return setError('Agregá al menos un producto.')
     setBusy(true)
-    const items = chosen.map((l) => ({ product_id: l.product.id, name: l.product.name, variant: l.variant?.name ?? null, qty: l.qty, price: l.price }))
+    const items = chosen.map((l) => (l.fixed
+      ? { ...l.fixed, qty: l.qty }
+      : { product_id: l.product.id, name: l.product.name, variant: l.variant?.name ?? null, qty: l.qty, price: l.price }))
     const trimmed = Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.trim()]))
-    const { error } = await supabase.rpc('create_order', { o: { ...trimmed, items, total: items.reduce((s, l) => s + l.price * l.qty, 0) } })
+    const data = { ...trimmed, items, total: items.reduce((s, l) => s + l.price * l.qty, 0) }
+    const { error } = order
+      ? await supabase.rpc('update_order', { order_id: order.id, o: data })
+      : await supabase.rpc('create_order', { o: data })
     setBusy(false)
     if (!error) return onClose()
     const out = error.message.match(/out_of_stock:(\d+)/)
-    setError(out ? `No hay stock suficiente de ${products.find((p) => p.id === Number(out[1]))?.name}. Ajustalo en Gestión → Productos.` : error.message)
+    setError(out ? `No hay stock suficiente de ${productName(Number(out[1]))}. Ajustalo en Gestión → Productos.`
+      : error.message.includes('not_editable') ? 'Este pedido ya se entregó o se borró: no se puede editar.'
+      : error.message)
   }
 
   return (
     <form className="editor solo" onSubmit={save}>
-      <div className="row"><h2>Nuevo pedido</h2><button type="button" className="ghost" onClick={onClose}>Volver</button></div>
+      <div className="row"><h2>{order ? `Editar pedido #${order.id}` : 'Nuevo pedido'}</h2><button type="button" className="ghost" onClick={onClose}>Volver</button></div>
 
       <section className="box">
         <div className="fields">
           <label>Canal
-            <select value={o.source} onChange={set('source')}>
-              {Object.entries(sources).filter(([k]) => k !== 'web').map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+            <select value={o.source} onChange={set('source')} disabled={!!order}>
+              {Object.entries(sources).filter(([k]) => k !== 'web' || order).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
             </select>
           </label>
           <label>Fecha de entrega<input required type="date" value={o.delivery_date} onChange={set('delivery_date')} /></label>
@@ -67,13 +91,22 @@ export default function NewOrder({ sources, onClose }) {
       <section className="box">
         <h3>Productos</h3>
         {full.map((l, i) => {
-          const variants = l.product?.variants.filter((v) => v.active) ?? []
+          if (l.fixed) return (
+            <div key={i} className="order-line">
+              <span className="fixed">{l.fixed.name}{l.fixed.variant ? ` (${l.fixed.variant})` : ''}</span>
+              <input type="number" min="1" max="999" required value={l.qty} onChange={(e) => setLine(i, { qty: Math.max(1, Number(e.target.value) || 1) })} aria-label={`Cantidad de ${l.fixed.name}`} />
+              <span>{money(l.price * l.qty)}</span>
+              <button type="button" className="icon" onClick={() => setLines(lines.filter((_, j) => j !== i))} aria-label={`Quitar ${l.fixed.name}`}>✕</button>
+            </div>
+          )
+          // A variant that was hidden after the order stays selectable on its own line.
+          const variants = l.product?.variants.filter((v) => v.active || v.id === l.variant_id) ?? []
           return (
             <div key={i} className="order-line">
               <select required value={l.product_id} onChange={(e) => pick(i, Number(e.target.value))} aria-label={`Producto ${i + 1}`}>
                 <option value="">Elegí un producto</option>
                 {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}{p.active ? '' : ' (oculto)'}{p.stock > 0 ? '' : ' (agotado)'}</option>
+                  <option key={p.id} value={p.id}>{p.name}{p.active ? '' : ' (oculto)'}{available(p) > 0 ? '' : ' (agotado)'}</option>
                 ))}
               </select>
               {variants.length > 0 && (
@@ -89,12 +122,14 @@ export default function NewOrder({ sources, onClose }) {
         })}
         <button type="button" className="ghost" onClick={() => setLines([...lines, { product_id: '', variant_id: null, qty: 1 }])}>+ Producto</button>
         <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
-        <p className="muted">Precios de la tienda; descuenta stock como un pedido web. Si cobraste otro precio, marcalo como mayorista en el detalle del pedido.</p>
+        <p className="muted">{order
+          ? 'Los productos que ya estaban mantienen su precio; los nuevos o cambiados van al precio de hoy. El stock se ajusta solo con la diferencia.'
+          : 'Precios de la tienda; descuenta stock como un pedido web. Si cobraste otro precio, marcalo como mayorista en el detalle del pedido.'}</p>
       </section>
 
       {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">
-        <button disabled={busy}>{busy ? 'Guardando…' : 'Crear pedido'}</button>
+        <button disabled={busy}>{busy ? 'Guardando…' : order ? 'Guardar cambios' : 'Crear pedido'}</button>
       </div>
     </form>
   )
