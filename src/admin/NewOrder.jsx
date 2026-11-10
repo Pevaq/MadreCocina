@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase, money } from '../lib.js'
-import { unitPrice, todayIn } from '../../supabase/functions/_shared/order.js'
+import { unitPrice, todayIn, dayMonth } from '../../supabase/functions/_shared/order.js'
 
 // Orders taken outside the shop (WhatsApp, Instagram, in person). Same table and stock as web orders,
 // so they follow the same statuses and land in the CSV. No lead-time or contact rules: the admin knows the customer.
 // With `order`, edits one that isn't delivered (update_order moves the stock by the difference).
 export default function NewOrder({ sources, order, onClose }) {
   const [products, setProducts] = useState([])
+  const [off, setOff] = useState(null)
   const [o, setO] = useState(() => order
     ? { source: order.source, customer_name: order.customer_name, phone: order.phone ?? '', delivery_date: order.delivery_date, notes: order.notes ?? '' }
     : { source: 'whatsapp', customer_name: '', phone: '', delivery_date: todayIn(), notes: '' })
@@ -21,6 +22,7 @@ export default function NewOrder({ sources, order, onClose }) {
 
   // Hidden products too: friends may order something that isn't on the shop right now.
   useEffect(() => {
+    supabase.from('settings').select('off_from, off_to').single().then(({ data }) => setOff(data))
     supabase.from('products').select('id, name, price, stock, active, variants(id, name, price, active)').order('sort').order('name').order('id', { referencedTable: 'variants' })
       .then(({ data }) => {
         setProducts(data ?? [])
@@ -46,6 +48,10 @@ export default function NewOrder({ sources, order, onClose }) {
   const held = (id) => (order?.items ?? []).reduce((n, x) => n + (x.product_id === id ? x.qty : 0), 0)
   const available = (p) => p.stock + held(p.id)
   const productName = (id) => products.find((p) => p.id === id)?.name
+
+  // Vacation: only a warning (she decides), and only the days themselves (she knows whether she can prepare before).
+  const onVacation = !!off?.off_from && o.delivery_date >= off.off_from && o.delivery_date <= off.off_to
+  const vacationNote = onVacation && `Ojo: esa fecha cae en tus vacaciones (del ${dayMonth(off.off_from)} al ${dayMonth(off.off_to)}). Podés guardarlo igual.`
 
   async function save(e) {
     e.preventDefault()
@@ -79,13 +85,14 @@ export default function NewOrder({ sources, order, onClose }) {
               {Object.entries(sources).filter(([k]) => k !== 'web' || order).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
             </select>
           </label>
-          <label>Fecha de entrega<input required type="date" value={o.delivery_date} onChange={set('delivery_date')} /></label>
+          <label>Fecha de entrega<input required type="date" value={o.delivery_date} onChange={set('delivery_date')} aria-describedby={onVacation ? 'vacation-note' : undefined} /></label>
         </div>
         <div className="fields">
           <label>Cliente<input required maxLength={60} value={o.customer_name} onChange={set('customer_name')} /></label>
           <label>Teléfono (opcional)<input type="tel" inputMode="tel" maxLength={25} value={o.phone} onChange={set('phone')} /></label>
         </div>
         <label>Notas<textarea maxLength={500} value={o.notes} onChange={set('notes')} /></label>
+        {vacationNote && <p id="vacation-note" className="error" role="status">{vacationNote}</p>}
       </section>
 
       <section className="box">

@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react'
 import { supabase, DEFAULT_CLOSED_MESSAGE } from '../lib.js'
 import { DEFAULT_READY_MESSAGE } from './whatsapp.js'
+import { dayMonth } from '../../supabase/functions/_shared/order.js'
 
 export default function Settings() {
   const [s, setS] = useState(null)
   const [msg, setMsg] = useState('')
+  const [taken, setTaken] = useState([])
 
   useEffect(() => { supabase.from('settings').select().single().then(({ data }) => setS(data)) }, [])
+  // Orders already taken for the vacation days: she moves them herself from Pedidos.
+  useEffect(() => {
+    if (!s?.off_from || !s?.off_to || s.off_from > s.off_to) return setTaken([])
+    supabase.from('orders').select('id, customer_name, delivery_date').neq('status', 'delivered')
+      .gte('delivery_date', s.off_from).lte('delivery_date', s.off_to).order('delivery_date')
+      .then(({ data }) => setTaken(data ?? []))
+  }, [s?.off_from, s?.off_to])
   if (!s) return null
   // Empty in the DB = the suggested text, so improvements to it reach her too.
   const msgText = s.ready_message ?? DEFAULT_READY_MESSAGE
@@ -14,7 +23,7 @@ export default function Settings() {
 
   async function save(e) {
     e.preventDefault()
-    const { error } = await supabase.from('settings').update({ ...s, whatsapp_number: s.whatsapp_number?.replace(/\D/g, ''), transfer_alias: s.transfer_alias?.trim() || null, transfer_holder: s.transfer_holder?.trim() || null, ready_message: msgText.trim() && msgText.trim() !== DEFAULT_READY_MESSAGE ? msgText.trim() : null, closed_message: closedText.trim() && closedText.trim() !== DEFAULT_CLOSED_MESSAGE ? closedText.trim() : null, order_cutoff: s.order_cutoff || null }).eq('id', 1)
+    const { error } = await supabase.from('settings').update({ ...s, whatsapp_number: s.whatsapp_number?.replace(/\D/g, ''), transfer_alias: s.transfer_alias?.trim() || null, transfer_holder: s.transfer_holder?.trim() || null, ready_message: msgText.trim() && msgText.trim() !== DEFAULT_READY_MESSAGE ? msgText.trim() : null, closed_message: closedText.trim() && closedText.trim() !== DEFAULT_CLOSED_MESSAGE ? closedText.trim() : null, order_cutoff: s.order_cutoff || null, off_from: s.off_from || null, off_to: s.off_to || null }).eq('id', 1)
     setMsg(error ? error.message : 'Guardado ✓')
   }
 
@@ -29,6 +38,18 @@ export default function Settings() {
           <input type="time" value={s.order_cutoff?.slice(0, 5) ?? ''} onChange={(e) => setS({ ...s, order_cutoff: e.target.value })} />
         </label>
         <p className="muted">Desde esa hora, los pedidos se cuentan como hechos al día siguiente: lo que se podía pedir para hoy pasa a mañana, y los productos con anticipación se corren un día. Vacío = sin horario límite.</p>
+      </section>
+      <section className="box">
+        <h3>Vacaciones</h3>
+        <div className="fields">
+          <label>Desde<input type="date" value={s.off_from ?? ''} required={!!s.off_to} onChange={(e) => setS({ ...s, off_from: e.target.value })} /></label>
+          <label>Hasta<input type="date" value={s.off_to ?? ''} min={s.off_from ?? undefined} required={!!s.off_from} onChange={(e) => setS({ ...s, off_to: e.target.value })} /></label>
+        </div>
+        <p className="muted">Esos días no hay entregas ni preparación. La tienda sigue abierta, avisa arriba de todo y no deja elegir esas fechas, ni los días después que hacen falta para preparar: un producto de 2 días recién se puede pedir para el tercer día después de volver.</p>
+        {taken.length > 0 && (
+          <p className="error" role="alert">Ya tenés {taken.length === 1 ? '1 pedido' : `${taken.length} pedidos`} para esos días: {taken.map((o) => `#${o.id} ${o.customer_name} (${dayMonth(o.delivery_date)})`).join(', ')}. Cambiales la fecha desde Pedidos.</p>
+        )}
+        {(s.off_from || s.off_to) && <button type="button" className="ghost" onClick={() => setS({ ...s, off_from: null, off_to: null })}>Quitar vacaciones</button>}
       </section>
       <section className="box">
         <h3>Tienda</h3>

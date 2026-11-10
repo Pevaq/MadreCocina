@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { unitPrice, addDays, minDeliveryDate, orderDay, nowIn, checkContact, isDate, maxDeliveryDate } from './order.js'
+import { unitPrice, addDays, minDeliveryDate, orderDay, nowIn, checkContact, isDate, maxDeliveryDate, blockedDates, isBlocked, firstDate, blockedError } from './order.js'
 
 test('variant price falls back to product price', () => {
   assert.equal(unitPrice({ price: 100 }, { price: null }), 100)
@@ -55,4 +55,19 @@ test('dates: real calendar days, up to 90 days ahead', () => {
   assert.ok(!isDate('2026-02-30'))
   assert.ok(!isDate('2026-2-3'))
   assert.equal(maxDeliveryDate('2026-10-19'), '2027-01-17')
+})
+
+test('vacation blocks delivery and the preparation days after it', () => {
+  const off = { off_from: '2026-11-23', off_to: '2026-11-29' }
+  assert.equal(blockedDates({ off_from: null, off_to: null }, [2]), null)
+  assert.equal(firstDate('2026-11-20', null), '2026-11-20')
+  // Same-day products: back on Monday 30. 2 days of notice: prepared Mon 30 and Tue 1, delivered Wed 2.
+  assert.deepEqual(blockedDates(off, [0]), { from: '2026-11-23', to: '2026-11-29' })
+  assert.deepEqual(blockedDates(off, [0, 2]), { from: '2026-11-23', to: '2026-12-01' })
+  const b = blockedDates(off, [2])
+  assert.ok(isBlocked('2026-11-23', b) && isBlocked('2026-12-01', b))
+  assert.ok(!isBlocked('2026-11-22', b) && !isBlocked('2026-12-02', b))
+  assert.equal(firstDate('2026-11-21', b), '2026-11-21')  // before the vacation, still fine
+  assert.equal(firstDate('2026-11-25', b), '2026-12-02')
+  assert.equal(blockedError(b), 'No hacemos entregas del 23/11 al 1/12. Elegí otra fecha.')
 })

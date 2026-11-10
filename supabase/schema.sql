@@ -12,7 +12,10 @@ create table settings (
   ready_message text,               -- WhatsApp text offered when an order goes to Listo; null = the suggested one in src/admin/whatsapp.js
   closed boolean not null default false,  -- shop closed: full-screen message, place-order rejects (manual orders still work)
   closed_message text,              -- shown while closed; null = DEFAULT_CLOSED_MESSAGE in src/lib.js
-  order_cutoff time                 -- from this time (Buenos Aires) orders count as placed tomorrow; null = no cutoff
+  order_cutoff time,                -- from this time (Buenos Aires) orders count as placed tomorrow; null = no cutoff
+  off_from date,                    -- vacation, both days included: no deliveries or preparation (shop and place-order)
+  off_to date,
+  check (off_from <= off_to)
 );
 insert into settings default values;
 

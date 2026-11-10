@@ -1,7 +1,7 @@
 // Receives an order from the shop, recomputes prices from the database (never trusts the client),
-// checks the store is open and the delivery date (daily cutoff included), takes the stock and saves it (create_order, one transaction) and emails the owner if email notifications are on.
+// checks the store is open and the delivery date (daily cutoff and vacation included), takes the stock and saves it (create_order, one transaction) and emails the owner if email notifications are on.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { unitPrice, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, isDate, checkContact, STORE_TZ } from '../_shared/order.js'
+import { unitPrice, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, isDate, checkContact, blockedDates, isBlocked, blockedError, STORE_TZ } from '../_shared/order.js'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
 
   // The shop shows a closed screen, but a page left open (or a direct call) still lands here.
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const { data: settings, error: settingsError } = await db.from('settings').select('store_name, email_on, closed, order_cutoff').single()
+  const { data: settings, error: settingsError } = await db.from('settings').select('store_name, email_on, closed, order_cutoff, off_from, off_to').single()
   if (settingsError) return fail(settingsError)
   if (settings.closed) return json({ error: 'Por ahora no estamos tomando pedidos. Recargá la página para ver más.' }, 503)
 
@@ -64,6 +64,8 @@ Deno.serve(async (req) => {
 
   const min = minDeliveryDate(orderDay(todayIn(TZ), nowIn(TZ), settings.order_cutoff), lines.map((l) => l.lead))
   if (delivery_date < min) return json({ error: `La fecha mínima de entrega es ${min}.` }, 400)
+  const blocked = blockedDates(settings, lines.map((l) => l.lead))
+  if (isBlocked(delivery_date, blocked)) return json({ error: blockedError(blocked) }, 400)
   if (delivery_date > maxDeliveryDate(todayIn(TZ))) return json({ error: 'Se puede pedir hasta con 3 meses de anticipación.' }, 400)
 
   const total = lines.reduce((sum, l) => sum + l.price * l.qty, 0)

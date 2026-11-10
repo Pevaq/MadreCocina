@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase, imageUrl, money, longDate, hideSplash, useDialog, useMedia, TURNSTILE_SITE_KEY, loadTurnstile, DEFAULT_CLOSED_MESSAGE } from './lib.js'
-import { unitPrice, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, checkContact } from '../supabase/functions/_shared/order.js'
+import { unitPrice, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, checkContact, blockedDates, isBlocked, firstDate, blockedNote, blockedError } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
   const [settings, setSettings] = useState(null)
@@ -53,12 +53,15 @@ export default function Shop() {
   const wa = whatsapp(settings)
   // Desktop: the order lives in a sidebar next to the catalog instead of a dialog.
   const side = wide && count > 0
-  const checkoutProps = { cart, setCart, cutoff: settings?.order_cutoff, onStale: loadProducts, onClose: () => setCheckout(false), onDone: (order) => { setCart([]); setCheckout(false); setDone(order); loadProducts() } }
+  const checkoutProps = { cart, setCart, cutoff: settings?.order_cutoff, off: settings, onStale: loadProducts, onClose: () => setCheckout(false), onDone: (order) => { setCart([]); setCheckout(false); setDone(order); loadProducts() } }
 
   return (
     <div className={`shop${side ? ' with-side' : ''}`}>
       <main className="page">
         <header className="brand"><h1><img src="logo.svg" alt={settings?.store_name ?? 'Madre'} width="820" height="444" /></h1></header>
+        {settings?.off_to >= todayIn() && (
+          <p className="notice">Del <strong>{longDate(settings.off_from)}</strong> al <strong>{longDate(settings.off_to)}</strong> no hacemos entregas ni preparamos pedidos. Podés pedir igual para antes o para después.</p>
+        )}
         {settings?.show_categories && (
           <nav className="chips">
             <button className={!category ? 'on' : ''} aria-pressed={!category} onClick={() => setCategory(null)}>Todo</button>
@@ -165,12 +168,16 @@ const Chevron = ({ left }) => (
 
 // A bottom sheet / dialog, or with `inline` the desktop sidebar (always open while there's an order).
 // Two steps so it fits without scrolling: the order and its date, then the contact details.
-function Checkout({ cart, setCart, cutoff, onStale, onClose, onDone, inline }) {
+function Checkout({ cart, setCart, cutoff, off, onStale, onClose, onDone, inline }) {
   // Past the daily cutoff the order counts as placed tomorrow (place-order checks the same).
   const lateOrder = orderDay(todayIn(), nowIn(), cutoff) !== todayIn()
-  const min = minDeliveryDate(orderDay(todayIn(), nowIn(), cutoff), cart.map((l) => l.product.lead_days))
+  const leads = cart.map((l) => l.product.lead_days)
+  const min = minDeliveryDate(orderDay(todayIn(), nowIn(), cutoff), leads)
+  // Vacation: delivery days and the preparation days right after it (place-order checks the same).
+  const blocked = blockedDates(off, leads)
+  const first = firstDate(min, blocked)
   // website = honeypot: hidden from people, bots fill it and place-order rejects the order.
-  const [form, setForm] = useState({ customer_name: '', phone: '', delivery_date: min, notes: '', website: '' })
+  const [form, setForm] = useState({ customer_name: '', phone: '', delivery_date: first, notes: '', website: '' })
   const [step, setStep] = useState('order')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
@@ -185,7 +192,8 @@ function Checkout({ cart, setCart, cutoff, onStale, onClose, onDone, inline }) {
   const edited = useRef(false)
   useEffect(() => { if (edited.current) dialog.current.querySelector('h2').focus() }, [step])
   // Removing an item can lower the minimum; adding one can raise it past the chosen date.
-  const date = form.delivery_date < min ? min : form.delivery_date
+  const date = form.delivery_date < min ? first : form.delivery_date
+  const offDate = isBlocked(date, blocked)
   // Turnstile token for place-order. Rendered on the contact step; each token works once.
   const captchaBox = useRef(null)
   const captchaId = useRef(null)
@@ -213,6 +221,7 @@ function Checkout({ cart, setCart, cutoff, onStale, onClose, onDone, inline }) {
 
   async function submit(e) {
     e.preventDefault()
+    if (offDate) return
     if (step === 'order') return setStep('contact')
     // Same check as place-order: catch typos here instead of spending the captcha token.
     const { contact, error: invalid } = checkContact(form)
@@ -257,9 +266,10 @@ function Checkout({ cart, setCart, cutoff, onStale, onClose, onDone, inline }) {
             )
           })}
           <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
-          <label>Fecha de entrega<input required type="date" min={min} max={maxDeliveryDate(todayIn())} value={date} onChange={set('delivery_date')} aria-describedby={lateOrder ? 'cutoff-note' : undefined} /></label>
-          {lateOrder && <p id="cutoff-note" className="muted cutoff">Los pedidos de después de las {cutoff.slice(0, 5)} se cuentan desde mañana.</p>}
-          <button disabled={cart.length === 0}>Continuar</button>
+          <label>Fecha de entrega<input required type="date" min={min} max={maxDeliveryDate(todayIn())} value={date} onChange={set('delivery_date')} aria-invalid={offDate} aria-describedby={blocked && blocked.to >= min ? 'off-note' : lateOrder ? 'cutoff-note' : undefined} /></label>
+          {blocked && blocked.to >= min && <p id='off-note' className={`${offDate ? 'error' : 'muted'} cutoff`} role={offDate ? 'alert' : undefined}>{offDate ? blockedError(blocked) : blockedNote(blocked)}</p>}
+          {lateOrder && !offDate && <p id="cutoff-note" className="muted cutoff">Los pedidos de después de las {cutoff.slice(0, 5)} se cuentan desde mañana.</p>}
+          <button disabled={cart.length === 0 || offDate}>Continuar</button>
         </>
       ) : (
         <>

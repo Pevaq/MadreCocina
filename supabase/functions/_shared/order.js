@@ -31,6 +31,21 @@ export function minDeliveryDate(today, leadDays) {
   return lead === 0 ? today : addDays(today, lead + 1)
 }
 
+// Vacation (settings.off_from / off_to, both inclusive): no deliveries and no preparation those days.
+// A product with N days of notice is prepared in the N days before delivery, so delivery stays blocked
+// until off_to + N (2 days of notice, vacation ends Sunday 29 → first delivery Wednesday 2).
+export function blockedDates(off, leadDays) {
+  if (!off?.off_from || !off?.off_to) return null
+  return { from: off.off_from, to: addDays(off.off_to, Math.max(0, ...leadDays)) }
+}
+export const isBlocked = (date, blocked) => !!blocked && date >= blocked.from && date <= blocked.to
+// First date the customer can pick: the minimum, or the day after the blocked range if the minimum falls in it.
+export const firstDate = (min, blocked) => (isBlocked(min, blocked) ? addDays(blocked.to, 1) : min)
+// "23/11"
+export const dayMonth = (iso) => `${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}`
+export const blockedNote = (blocked) => `No hacemos entregas del ${dayMonth(blocked.from)} al ${dayMonth(blocked.to)}.`
+export const blockedError = (blocked) => `${blockedNote(blocked)} Elegí otra fecha.`
+
 // Furthest delivery date the shop accepts: further out is a typo or a bot.
 export const maxDeliveryDate = (today) => addDays(today, 90)
 
