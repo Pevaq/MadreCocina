@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, imageUrl, money } from '../lib.js'
 import { useSortable } from './sortable.js'
 import TrashIcon from './TrashIcon.jsx'
+import EyeIcon from './EyeIcon.jsx'
 import { ProductCard } from '../Shop.jsx'
 
 // Asks first; returns an error message, '' if it was deleted, or null if she cancelled.
@@ -45,6 +46,17 @@ export default function Products() {
               {!p.active && <em className="muted"> · oculto</em>}
             </small>
           </div>
+          <button
+            type="button" className="icon" aria-pressed={!p.active}
+            aria-label={`Ocultar ${p.name} de la tienda`} title={p.active ? 'Visible en la tienda: tocá para ocultarlo' : 'Oculto: tocá para mostrarlo'}
+            onClick={async (e) => {
+              e.stopPropagation()
+              const active = !p.active
+              setProducts((list) => list.map((x) => (x.id === p.id ? { ...x, active } : x)))
+              const { error } = await supabase.from('products').update({ active }).eq('id', p.id)
+              if (error) { setError(error.message); load() }
+            }}
+          ><EyeIcon off={!p.active} /></button>
           <button
             type="button" className="icon delete" aria-label={`Borrar ${p.name}`}
             onClick={async (e) => {
