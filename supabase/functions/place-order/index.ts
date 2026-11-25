@@ -1,7 +1,7 @@
 // Receives an order from the shop, recomputes prices from the database (never trusts the client),
 // checks the store is open and the delivery date (daily cutoff and vacation included), takes the stock and saves it (create_order, one transaction) and emails the owner if email notifications are on.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { unitPrice, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, isDate, checkContact, blockedDates, isBlocked, blockedError, STORE_TZ } from '../_shared/order.js'
+import { unitPrice, lineName, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, isDate, checkContact, blockedDates, isBlocked, blockedError, STORE_TZ } from '../_shared/order.js'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
   const { data: products, error } = await db
     .from('products')
-    .select('id, name, price, lead_days, stock, variants(id, name, price, active)')
+    .select('id, name, price, lead_days, stock, variants(id, name, price, active), sizes(id, name, price, active)')
     .eq('active', true)
     .in('id', items.map((i: any) => i.product_id))
   // DB errors go to the logs, not to the customer.
@@ -58,8 +58,12 @@ Deno.serve(async (req) => {
   for (const i of items) {
     const product = products.find((p) => p.id === i.product_id)
     const variant = i.variant_id == null ? null : product?.variants.find((v) => v.id === i.variant_id && v.active)
-    if (!product || (i.variant_id != null && !variant)) return json({ error: 'Un producto ya no está disponible.' }, 409)
-    lines.push({ product_id: product.id, name: product.name, variant: variant?.name ?? null, qty: i.qty, price: unitPrice(product, variant), lead: product.lead_days })
+    // A product with visible sizes needs one: the size sets the price.
+    const sizes = product?.sizes.filter((s) => s.active) ?? []
+    const size = i.size_id == null ? null : sizes.find((s) => s.id === i.size_id)
+    if (!product || (i.variant_id != null && !variant) || (sizes.length > 0 && !size) || (sizes.length === 0 && i.size_id != null))
+      return json({ error: 'Un producto ya no está disponible.' }, 409)
+    lines.push({ product_id: product.id, name: product.name, size: size?.name ?? null, variant: variant?.name ?? null, qty: i.qty, price: unitPrice(product, variant, size), lead: product.lead_days })
   }
 
   const min = minDeliveryDate(orderDay(todayIn(TZ), nowIn(TZ), settings.order_cutoff), lines.map((l) => l.lead))
@@ -86,7 +90,7 @@ Deno.serve(async (req) => {
 
   // The order is already saved: an email failure is logged, not shown to the customer.
   if (settings.email_on) {
-    const detail = orderItems.map((l) => `- ${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}: $${l.price * l.qty}`).join('\n')
+    const detail = orderItems.map((l) => `- ${l.qty} x ${lineName(l)}: $${l.price * l.qty}`).join('\n')
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`, 'Content-Type': 'application/json' },

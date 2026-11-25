@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase, money, longDate, useDialog } from '../lib.js'
-import { todayIn, addDays } from '../../supabase/functions/_shared/order.js'
+import { todayIn, addDays, lineName } from '../../supabase/functions/_shared/order.js'
 import TrashIcon from './TrashIcon.jsx'
 import NewOrder from './NewOrder.jsx'
 import ImportOrders from './ImportOrders.jsx'
 import { readyMessage, waNumber, waLink } from './whatsapp.js'
 
-const itemsText = (items) => items.map((l) => `${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join(', ')
+const itemsText = (items) => items.map((l) => `${l.qty} x ${lineName(l)}`).join(', ')
 
 // Order progression. Any step can be skipped; "Entregado" moves it to Finalizados.
 const STATUSES = { pending: 'Recibido', paid: 'Pagado', preparing: 'En preparación', ready: 'Listo', delivered: 'Entregado' }
@@ -173,7 +173,7 @@ function OrderDetail({ order, onClose, onUpdate, onRemove, onEdit }) {
         <div className="lines">
           {order.items.map((l, i) => (
             <div key={i} className="line">
-              <span>{l.qty} × {l.name}{l.variant ? ` (${l.variant})` : ''}</span>
+              <span>{l.qty} × {lineName(l)}</span>
               <span>{money(l.price * l.qty)}</span>
             </div>
           ))}

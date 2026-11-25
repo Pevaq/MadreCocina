@@ -1,4 +1,5 @@
 // "Pedido listo" message to the customer by WhatsApp (wa.me link: she sends it from her own WhatsApp).
+import { lineName } from '../../supabase/functions/_shared/order.js'
 
 // Used while settings.ready_message is empty. Says the order is ready and nothing about delivery: she arranges that.
 export const DEFAULT_READY_MESSAGE =
@@ -6,7 +7,7 @@ export const DEFAULT_READY_MESSAGE =
 
 // {nombre} = first name only ("¡Hola Ana!"), {tienda}, {productos} = one "• 2 x Cookies" per line.
 export function readyMessage(template, order, storeName) {
-  const items = order.items.map((l) => `• ${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join('\n')
+  const items = order.items.map((l) => `• ${l.qty} x ${lineName(l)}`).join('\n')
   return (template?.trim() || DEFAULT_READY_MESSAGE)
     .replaceAll('{nombre}', order.customer_name.trim().split(/\s+/)[0])
     .replaceAll('{tienda}', storeName ?? '')

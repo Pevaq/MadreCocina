@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase, money } from '../lib.js'
-import { unitPrice, todayIn, dayMonth } from '../../supabase/functions/_shared/order.js'
+import { unitPrice, lineName, todayIn, dayMonth } from '../../supabase/functions/_shared/order.js'
 
 // Orders taken outside the shop (WhatsApp, Instagram, in person). Same table and stock as web orders,
 // so they follow the same statuses and land in the CSV. No lead-time or contact rules: the admin knows the customer.
@@ -14,8 +14,8 @@ export default function NewOrder({ sources, order, onClose }) {
   // Saved lines remember what they were (`was`): unchanged, they keep the price the customer saw.
   // Lines from before items had product_id can't be matched to a product: they stay as they are (`fixed`).
   const [lines, setLines] = useState(() => order
-    ? order.items.map((item) => (item.product_id ? { product_id: item.product_id, variant_id: null, qty: item.qty, was: item } : { fixed: item, qty: item.qty }))
-    : [{ product_id: '', variant_id: null, qty: 1 }])
+    ? order.items.map((item) => (item.product_id ? { product_id: item.product_id, size_id: null, variant_id: null, qty: item.qty, was: item } : { fixed: item, qty: item.qty }))
+    : [{ product_id: '', size_id: null, variant_id: null, qty: 1 }])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setO({ ...o, [k]: e.target.value })
@@ -23,11 +23,15 @@ export default function NewOrder({ sources, order, onClose }) {
   // Hidden products too: friends may order something that isn't on the shop right now.
   useEffect(() => {
     supabase.from('settings').select('off_from, off_to').single().then(({ data }) => setOff(data))
-    supabase.from('products').select('id, name, price, stock, active, variants(id, name, price, active)').order('sort').order('name').order('id', { referencedTable: 'variants' })
+    supabase.from('products').select('id, name, price, stock, active, variants(id, name, price, active), sizes(id, name, price, active)').order('sort').order('name').order('id', { referencedTable: 'variants' }).order('price', { referencedTable: 'sizes' }).order('id', { referencedTable: 'sizes' })
       .then(({ data }) => {
         setProducts(data ?? [])
-        // Saved items keep the variant's name, not its id: find it by name once the products are in.
-        setLines((ls) => ls.map((l) => (l.was ? { ...l, variant_id: data?.find((p) => p.id === l.product_id)?.variants.find((v) => v.name === l.was.variant)?.id ?? null } : l)))
+        // Saved items keep the size's and variant's names, not their ids: find them by name once the products are in.
+        setLines((ls) => ls.map((l) => {
+          if (!l.was) return l
+          const p = data?.find((x) => x.id === l.product_id)
+          return { ...l, size_id: p?.sizes.find((s) => s.name === l.was.size)?.id ?? null, variant_id: p?.variants.find((v) => v.name === l.was.variant)?.id ?? null }
+        }))
       })
   }, [])
 
@@ -35,14 +39,15 @@ export default function NewOrder({ sources, order, onClose }) {
     if (l.fixed) return { ...l, price: l.fixed.price }
     const product = products.find((p) => p.id === l.product_id)
     const variant = product?.variants.find((v) => v.id === l.variant_id)
-    const same = l.was && l.was.product_id === l.product_id && (l.was.variant ?? null) === (variant?.name ?? null)
-    return { ...l, product, variant, price: same ? l.was.price : product ? unitPrice(product, variant) : 0 }
+    const size = product?.sizes.find((s) => s.id === l.size_id)
+    const same = l.was && l.was.product_id === l.product_id && (l.was.variant ?? null) === (variant?.name ?? null) && (l.was.size ?? null) === (size?.name ?? null)
+    return { ...l, product, size, variant, price: same ? l.was.price : product ? unitPrice(product, variant, size) : 0 }
   })
   const total = full.reduce((s, l) => s + l.price * l.qty, 0)
   const setLine = (i, change) => setLines(lines.map((l, j) => (j === i ? { ...l, ...change } : l)))
   const pick = (i, id) => {
     const product = products.find((p) => p.id === id)
-    setLine(i, { product_id: id, variant_id: product?.variants.find((v) => v.active)?.id ?? null })
+    setLine(i, { product_id: id, size_id: product?.sizes.find((s) => s.active)?.id ?? null, variant_id: product?.variants.find((v) => v.active)?.id ?? null })
   }
   // In stock for this order: what's left plus what this order already holds (they come back on save).
   const held = (id) => (order?.items ?? []).reduce((n, x) => n + (x.product_id === id ? x.qty : 0), 0)
@@ -60,7 +65,7 @@ export default function NewOrder({ sources, order, onClose }) {
     setBusy(true)
     const items = chosen.map((l) => (l.fixed
       ? { ...l.fixed, qty: l.qty }
-      : { product_id: l.product.id, name: l.product.name, variant: l.variant?.name ?? null, qty: l.qty, price: l.price }))
+      : { product_id: l.product.id, name: l.product.name, size: l.size?.name ?? null, variant: l.variant?.name ?? null, qty: l.qty, price: l.price }))
     const trimmed = Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.trim()]))
     const data = { ...trimmed, items, total: items.reduce((s, l) => s + l.price * l.qty, 0) }
     const { error } = order
@@ -100,14 +105,15 @@ export default function NewOrder({ sources, order, onClose }) {
         {full.map((l, i) => {
           if (l.fixed) return (
             <div key={i} className="order-line">
-              <span className="fixed">{l.fixed.name}{l.fixed.variant ? ` (${l.fixed.variant})` : ''}</span>
+              <span className="fixed">{lineName(l.fixed)}</span>
               <input type="number" min="1" max="999" required value={l.qty} onChange={(e) => setLine(i, { qty: Math.max(1, Number(e.target.value) || 1) })} aria-label={`Cantidad de ${l.fixed.name}`} />
               <span>{money(l.price * l.qty)}</span>
               <button type="button" className="icon" onClick={() => setLines(lines.filter((_, j) => j !== i))} aria-label={`Quitar ${l.fixed.name}`}>✕</button>
             </div>
           )
-          // A variant that was hidden after the order stays selectable on its own line.
+          // A size or variant that was hidden after the order stays selectable on its own line.
           const variants = l.product?.variants.filter((v) => v.active || v.id === l.variant_id) ?? []
+          const sizes = l.product?.sizes.filter((s) => s.active || s.id === l.size_id) ?? []
           return (
             <div key={i} className="order-line">
               <select required value={l.product_id} onChange={(e) => pick(i, Number(e.target.value))} aria-label={`Producto ${i + 1}`}>
@@ -116,10 +122,21 @@ export default function NewOrder({ sources, order, onClose }) {
                   <option key={p.id} value={p.id}>{p.name}{p.active ? '' : ' (oculto)'}{available(p) > 0 ? '' : ' (agotado)'}</option>
                 ))}
               </select>
-              {variants.length > 0 && (
-                <select value={l.variant_id ?? ''} onChange={(e) => setLine(i, { variant_id: Number(e.target.value) })} aria-label={`Variante del producto ${i + 1}`}>
-                  {variants.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
+              {(sizes.length > 0 || variants.length > 0) && (
+                <div className="opts">
+                  {sizes.length > 0 && (
+                    <select value={l.size_id ?? ''} onChange={(e) => setLine(i, { size_id: Number(e.target.value) || null })} aria-label={`Tamaño del producto ${i + 1}`}>
+                      {/* Older orders of a product that now has sizes were saved without one. */}
+                      {l.size_id == null && <option value="">Sin tamaño</option>}
+                      {sizes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  )}
+                  {variants.length > 0 && (
+                    <select value={l.variant_id ?? ''} onChange={(e) => setLine(i, { variant_id: Number(e.target.value) })} aria-label={`Variante del producto ${i + 1}`}>
+                      {variants.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
+                  )}
+                </div>
               )}
               <input type="number" min="1" max="999" required value={l.qty} onChange={(e) => setLine(i, { qty: Math.max(1, Number(e.target.value) || 1) })} aria-label={`Cantidad del producto ${i + 1}`} />
               <span>{money(l.price * l.qty)}</span>
@@ -127,7 +144,7 @@ export default function NewOrder({ sources, order, onClose }) {
             </div>
           )
         })}
-        <button type="button" className="ghost" onClick={() => setLines([...lines, { product_id: '', variant_id: null, qty: 1 }])}>+ Producto</button>
+        <button type="button" className="ghost" onClick={() => setLines([...lines, { product_id: '', size_id: null, variant_id: null, qty: 1 }])}>+ Producto</button>
         <p className="row total"><strong>Total</strong><strong>{money(total)}</strong></p>
         <p className="muted">{order
           ? 'Los productos que ya estaban mantienen su precio; los nuevos o cambiados van al precio de hoy. El stock se ajusta solo con la diferencia.'

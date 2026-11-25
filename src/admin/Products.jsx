@@ -14,7 +14,7 @@ async function deleteProduct(product, images = product.images) {
   return ''
 }
 
-const EMPTY = { name: '', description: '', price: '', lead_days: 1, stock: 0, category_id: null, images: [], active: true, variants: [] }
+const EMPTY = { name: '', description: '', price: '', lead_days: 1, stock: 0, category_id: null, images: [], active: true, variants: [], sizes: [] }
 
 export default function Products() {
   const [products, setProducts] = useState([])
@@ -23,7 +23,7 @@ export default function Products() {
   const [error, setError] = useState('')
   const { dragging, handle } = useSortable(products, setProducts, 'products', setError)
 
-  const load = () => supabase.from('products').select('*, variants(*)').order('sort').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => setProducts(data ?? []))
+  const load = () => supabase.from('products').select('*, variants(*), sizes(*)').order('sort').order('name').order('id', { referencedTable: 'variants' }).order('price', { referencedTable: 'sizes' }).order('id', { referencedTable: 'sizes' }).then(({ data }) => setProducts(data ?? []))
   useEffect(() => {
     load()
     supabase.from('categories').select().order('sort').then(({ data }) => setCategories(data ?? []))
@@ -42,7 +42,7 @@ export default function Products() {
           <div className="info">
             <span>{p.name}</span>
             <small>
-              {money(p.price)} · <span className={p.stock > 0 ? 'muted' : 'error'}>{p.stock > 0 ? `Stock ${p.stock}` : 'Agotado'}</span>
+              {p.sizes.length > 0 && 'desde '}{money(p.price)} · <span className={p.stock > 0 ? 'muted' : 'error'}>{p.stock > 0 ? `Stock ${p.stock}` : 'Agotado'}</span>
               {!p.active && <em className="muted"> · oculto</em>}
             </small>
           </div>
@@ -87,15 +87,22 @@ async function compress(file) {
 }
 
 function Editor({ product, categories, onClose }) {
-  const [p, setP] = useState({ ...product, variants: product.variants.map((v) => ({ ...v })) })
+  const [p, setP] = useState({ ...product, variants: product.variants.map((v) => ({ ...v })), sizes: product.sizes.map((x) => ({ ...x })) })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (k, v) => setP({ ...p, [k]: v })
   const setVariant = (i, k, v) => set('variants', p.variants.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
+  const setSize = (i, k, v) => set('sizes', p.sizes.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
+  // With sizes, each size has its price and the product's is the cheapest (what the list shows).
+  const named = p.sizes.filter((x) => x.name.trim())
+  const hasSizes = named.length > 0
+  const sizePrices = (named.some((x) => x.active) ? named.filter((x) => x.active) : named).map((x) => Number(x.price) || 0)
+  const price = hasSizes ? Math.min(...sizePrices) : Number(p.price) || 0
   // The shop card with what's typed so far: numbers parsed, variants given temporary ids.
   const preview = {
-    ...p, name: p.name || 'Nombre del producto', price: Number(p.price) || 0, lead_days: Number(p.lead_days) || 0, stock: Number(p.stock) || 0,
+    ...p, name: p.name || 'Nombre del producto', price, lead_days: Number(p.lead_days) || 0, stock: Number(p.stock) || 0,
     variants: p.variants.map((v, i) => ({ ...v, id: v.id ?? -1 - i, name: v.name || 'Variante', price: v.price === '' || v.price == null ? null : Number(v.price) })),
+    sizes: named.map((x, i) => ({ ...x, id: x.id ?? -1 - i, price: Number(x.price) || 0 })),
   }
   // Photos reorder by dragging; the first one is the cover in the shop.
   const photos = useSortable(p.images.map((id) => ({ id })), (list) => setP((cur) => ({ ...cur, images: list.map((x) => x.id) })))
@@ -121,8 +128,8 @@ function Editor({ product, categories, onClose }) {
     e.preventDefault()
     if (!p.images.length) return setError('Agregá al menos una foto.')
     setBusy(true)
-    const { variants, id, ...fields } = p
-    const row = { ...fields, price: Number(fields.price), lead_days: Number(fields.lead_days), stock: Number(fields.stock), category_id: fields.category_id || null }
+    const { variants, sizes, id, ...fields } = p
+    const row = { ...fields, price, lead_days: Number(fields.lead_days), stock: Number(fields.stock), category_id: fields.category_id || null }
     // An edit sends the change, not the value: orders that came in while editing keep their units (add_stock).
     const delta = id ? row.stock - product.stock : 0
     if (id) delete row.stock
@@ -135,13 +142,19 @@ function Editor({ product, categories, onClose }) {
       if (error) { setBusy(false); return setError(error.message) }
     }
 
-    const keep = variants.filter((v) => v.name.trim())
-    const removed = product.variants.filter((old) => !keep.some((v) => v.id === old.id)).map((v) => v.id)
-    const toRow = (v) => ({ product_id: data.id, name: v.name.trim(), price: v.price === '' || v.price == null ? null : Number(v.price), active: v.active })
+    // Variants and sizes: rows without a name are dropped, the rest updated or inserted.
+    const sync = (table, list, old, toRow) => {
+      const keep = list.filter((v) => v.name.trim())
+      const removed = old.filter((o) => !keep.some((v) => v.id === o.id)).map((v) => v.id)
+      return [
+        removed.length && supabase.from(table).delete().in('id', removed),
+        ...keep.filter((v) => v.id).map((v) => supabase.from(table).update(toRow(v)).eq('id', v.id)),
+        keep.some((v) => !v.id) && supabase.from(table).insert(keep.filter((v) => !v.id).map(toRow)),
+      ]
+    }
     const results = await Promise.all([
-      removed.length && supabase.from('variants').delete().in('id', removed),
-      ...keep.filter((v) => v.id).map((v) => supabase.from('variants').update(toRow(v)).eq('id', v.id)),
-      keep.some((v) => !v.id) && supabase.from('variants').insert(keep.filter((v) => !v.id).map(toRow)),
+      ...sync('variants', variants, product.variants, (v) => ({ product_id: data.id, name: v.name.trim(), price: v.price === '' || v.price == null ? null : Number(v.price), active: v.active })),
+      ...sync('sizes', sizes, product.sizes, (x) => ({ product_id: data.id, name: x.name.trim(), price: Number(x.price), active: x.active })),
     ])
     const droppedImages = product.images.filter((path) => !p.images.includes(path))
     if (droppedImages.length) await supabase.storage.from('products').remove(droppedImages)
@@ -178,10 +191,11 @@ function Editor({ product, categories, onClose }) {
       <section className="box">
         <h3>Precio y stock</h3>
         <div className="fields">
-          <label>Precio<input required type="number" min="0" step="any" value={p.price} onChange={(e) => set('price', e.target.value)} /></label>
+          {!hasSizes && <label>Precio<input required type="number" min="0" step="any" value={p.price} onChange={(e) => set('price', e.target.value)} /></label>}
           <label>Stock<input required type="number" min="0" step="1" value={p.stock} onChange={(e) => set('stock', e.target.value)} /></label>
           <label>Días de anticipación<input required type="number" min="0" value={p.lead_days} onChange={(e) => set('lead_days', e.target.value)} /></label>
         </div>
+        {hasSizes && <p className="muted">Precio: lo pone cada tamaño (abajo, en Tamaños).</p>}
         <p className="muted">Stock: los pedidos lo descuentan solos y vuelve si borrás un pedido sin entregar; en 0 figura Agotado.</p>
         <p className="muted">Anticipación: sin contar hoy. Con 2, si hoy es domingo se puede pedir desde el miércoles; con 0, para hoy.</p>
       </section>
@@ -207,12 +221,28 @@ function Editor({ product, categories, onClose }) {
       </section>
 
       <section className="box">
+        <h3>Tamaños (opcional)</h3>
+        <p className="muted">Ej.: S, M, L. Cada tamaño tiene su precio y en la tienda hay que elegir uno. Sin tamaños, se usa el precio del producto.</p>
+        {p.sizes.map((x, i) => (
+          <div key={x.id ?? `new-${i}`} className="variant">
+            <input placeholder="Nombre" value={x.name} onChange={(e) => setSize(i, 'name', e.target.value)} aria-label="Nombre del tamaño" />
+            <input type="number" min="0" step="any" placeholder="Precio" required={!!x.name.trim()} value={x.price ?? ''} onChange={(e) => setSize(i, 'price', e.target.value)} aria-label="Precio del tamaño" />
+            <label className="check"><input type="checkbox" checked={x.active} onChange={(e) => setSize(i, 'active', e.target.checked)} /> Visible</label>
+            <button type="button" className="icon" onClick={() => set('sizes', p.sizes.filter((_, j) => j !== i))} aria-label="Quitar tamaño">✕</button>
+          </div>
+        ))}
+        <button type="button" className="ghost" onClick={() => setP({ ...p, sizes: [...p.sizes, { name: '', price: '', active: true }], price: p.price === '' ? 0 : p.price })}>+ Tamaño</button>
+      </section>
+
+      <section className="box">
         <h3>Variantes</h3>
-        <p className="muted">Ej.: aceitunas, tomates. Dejá el precio vacío para usar el del producto.</p>
+        <p className="muted">{hasSizes
+          ? 'Ej.: romero, jamón crudo. El precio es un extra que se suma al del tamaño: dejalo vacío si no cambia.'
+          : 'Ej.: aceitunas, tomates. Dejá el precio vacío para usar el del producto.'}</p>
         {p.variants.map((v, i) => (
           <div key={v.id ?? `new-${i}`} className="variant">
             <input placeholder="Nombre" value={v.name} onChange={(e) => setVariant(i, 'name', e.target.value)} aria-label="Nombre de variante" />
-            <input type="number" min="0" step="any" placeholder="Precio" value={v.price ?? ''} onChange={(e) => setVariant(i, 'price', e.target.value)} aria-label="Precio de variante" />
+            <input type="number" min="0" step="any" placeholder={hasSizes ? 'Extra' : 'Precio'} value={v.price ?? ''} onChange={(e) => setVariant(i, 'price', e.target.value)} aria-label={hasSizes ? 'Extra de la variante' : 'Precio de variante'} />
             <label className="check"><input type="checkbox" checked={v.active} onChange={(e) => setVariant(i, 'active', e.target.checked)} /> Visible</label>
             <button type="button" className="icon" onClick={() => set('variants', p.variants.filter((_, j) => j !== i))} aria-label="Quitar variante">✕</button>
           </div>

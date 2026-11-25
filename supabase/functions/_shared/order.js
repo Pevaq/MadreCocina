@@ -1,7 +1,18 @@
 // Pure order logic shared by the shop (browser) and the place-order function (Deno).
 
-// A variant without its own price uses the product's price.
-export const unitPrice = (product, variant) => variant?.price ?? product.price
+// With a size (S/M/L), the size sets the price and the variant's price is an extra on top (null = no extra).
+// Without one, a variant's price replaces the product's (null = the product's price).
+export const unitPrice = (product, variant, size) =>
+  size ? Number(size.price) + Number(variant?.price ?? 0) : variant?.price ?? product.price
+
+// "L · Romero", "L", "Romero" or '' from the size and variant names.
+export const optionsText = (size, variant) => [size, variant].filter(Boolean).join(' · ')
+
+// A saved order line ({name, size, variant}) as "Focaccia (L · Romero)". Older orders have no size.
+export const lineName = (l) => {
+  const o = optionsText(l.size, l.variant)
+  return o ? `${l.name} (${o})` : l.name
+}
 
 // The store's time zone: dates follow Buenos Aires, not the customer's device.
 export const STORE_TZ = 'America/Argentina/Buenos_Aires'

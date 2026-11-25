@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase, imageUrl, money, longDate, hideSplash, useDialog, useMedia, TURNSTILE_SITE_KEY, loadTurnstile, DEFAULT_CLOSED_MESSAGE } from './lib.js'
-import { unitPrice, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, checkContact, blockedDates, isBlocked, firstDate, blockedNote, blockedError } from '../supabase/functions/_shared/order.js'
+import { unitPrice, lineName, todayIn, nowIn, orderDay, minDeliveryDate, maxDeliveryDate, checkContact, blockedDates, isBlocked, firstDate, blockedNote, blockedError } from '../supabase/functions/_shared/order.js'
 
 export default function Shop() {
   const [settings, setSettings] = useState(null)
@@ -14,7 +14,7 @@ export default function Shop() {
 
   // Also reloaded after an order or a stock error, so the cards show what's left.
   const loadProducts = () =>
-    supabase.from('products').select('*, variants(*)').eq('active', true).order('sort').order('name').order('id', { referencedTable: 'variants' }).then(({ data }) => {
+    supabase.from('products').select('*, variants(*), sizes(*)').eq('active', true).order('sort').order('name').order('id', { referencedTable: 'variants' }).order('price', { referencedTable: 'sizes' }).order('id', { referencedTable: 'sizes' }).then(({ data }) => {
       if (!data) return
       setProducts(data)
       // Drop cart lines whose product was hidden or deleted meanwhile, or the order keeps failing.
@@ -32,14 +32,14 @@ export default function Shop() {
 
   useEffect(() => { if (settings) document.title = settings.store_name }, [settings])
 
-  const add = (product, variant, qty) => {
-    setSaid(`Agregaste ${qty} × ${product.name}${variant ? ` (${variant.name})` : ''} a tu pedido.`)
+  const add = (product, variant, qty, size) => {
+    setSaid(`Agregaste ${qty} × ${lineName({ name: product.name, size: size?.name, variant: variant?.name })} a tu pedido.`)
     setCart((c) => {
-      const key = `${product.id}-${variant?.id ?? ''}`
+      const key = `${product.id}-${size?.id ?? ''}-${variant?.id ?? ''}`
       const found = c.find((l) => l.key === key)
       return found
         ? c.map((l) => (l === found ? { ...l, qty: l.qty + qty } : l))
-        : [...c, { key, product, variant, qty }]
+        : [...c, { key, product, size, variant, qty }]
     })
   }
 
@@ -100,7 +100,10 @@ export default function Shop() {
 // Stock is per product: all its variants and cart lines share it. Also used as the backoffice preview.
 export function ProductCard({ product, onAdd, inCart }) {
   const variants = product.variants.filter((v) => v.active)
+  const sizes = (product.sizes ?? []).filter((s) => s.active)
   const [variantId, setVariantId] = useState(variants[0]?.id)
+  const [sizeId, setSizeId] = useState(sizes[0]?.id)
+  const size = sizes.find((s) => s.id === sizeId) ?? sizes[0]
   const [img, setImg] = useState(0)
   const [qty, setQty] = useState(1)
   const variant = variants.find((v) => v.id === variantId)
@@ -135,14 +138,20 @@ export function ProductCard({ product, onAdd, inCart }) {
         <h3>{product.name}</h3>
         {product.description && <p>{product.description}</p>}
         {product.lead_days > 0 && <p className="lead">Pedir con {product.lead_days === 1 ? "1 día" : `${product.lead_days} días`} de anticipación</p>}
+        {sizes.length > 0 && (
+          <select value={size.id} onChange={(e) => setSizeId(Number(e.target.value))} aria-label="Tamaño">
+            {sizes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        )}
         {variants.length > 0 && (
           <select value={variantId} onChange={(e) => setVariantId(Number(e.target.value))} aria-label="Variante">
-            {variants.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            {/* With sizes a variant's price is an extra on top of the size's. */}
+            {variants.map((v) => <option key={v.id} value={v.id}>{v.name}{size && Number(v.price) > 0 ? ` (+${money(v.price)})` : ''}</option>)}
           </select>
         )}
       </div>
       <div className="buy">
-        <strong>{money(unitPrice(product, variant))}</strong>
+        <strong>{money(unitPrice(product, variant, size))}</strong>
         {/* aria-disabled, not disabled: a disabled button drops keyboard focus when it hits the limit. */}
         {left > 0 && (
           <div className="qty">
@@ -151,7 +160,7 @@ export function ProductCard({ product, onAdd, inCart }) {
             <button type="button" onClick={() => setQty(Math.min(left, q + 1))} aria-disabled={q >= left} aria-label={`Uno más de ${product.name}`}>+</button>
           </div>
         )}
-        <button type="button" className="add" aria-disabled={left <= 0} onClick={() => { if (left > 0) { onAdd(product, variant, q); setQty(1) } }}>
+        <button type="button" className="add" aria-disabled={left <= 0} onClick={() => { if (left > 0) { onAdd(product, variant, q, size); setQty(1) } }}>
           {left > 0 ? 'Agregar' : product.stock > 0 ? 'Ya en tu pedido' : 'Agotado'}
         </button>
       </div>
@@ -181,7 +190,7 @@ function Checkout({ cart, setCart, cutoff, off, onStale, onClose, onDone, inline
   const [step, setStep] = useState('order')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
-  const total = cart.reduce((s, l) => s + unitPrice(l.product, l.variant) * l.qty, 0)
+  const total = cart.reduce((s, l) => s + unitPrice(l.product, l.variant, l.size) * l.qty, 0)
   const count = cart.reduce((n, l) => n + l.qty, 0)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const setQty = (line, qty) => setCart(cart.map((l) => (l === line ? { ...l, qty } : l)))
@@ -228,7 +237,7 @@ function Checkout({ cart, setCart, cutoff, off, onStale, onClose, onDone, inline
     if (invalid) return setError(invalid)
     setSending(true)
     setError('')
-    const items = cart.map((l) => ({ product_id: l.product.id, variant_id: l.variant?.id ?? null, qty: l.qty }))
+    const items = cart.map((l) => ({ product_id: l.product.id, size_id: l.size?.id ?? null, variant_id: l.variant?.id ?? null, qty: l.qty }))
     const { data, error } = await supabase.functions.invoke('place-order', { body: { ...form, ...contact, delivery_date: date, items, captcha } })
     setSending(false)
     if (error) {
@@ -250,7 +259,7 @@ function Checkout({ cart, setCart, cutoff, off, onStale, onClose, onDone, inline
       {step === 'order' ? (
         <>
           {cart.map((l) => {
-            const name = `${l.product.name}${l.variant ? ` (${l.variant.name})` : ''}`
+            const name = lineName({ name: l.product.name, size: l.size?.name, variant: l.variant?.name })
             return (
               <div key={l.key} className="row line">
                 <span>{name}</span>
@@ -260,7 +269,7 @@ function Checkout({ cart, setCart, cutoff, off, onStale, onClose, onDone, inline
                   <output aria-label={`Cantidad de ${name} en tu pedido`}>{l.qty}</output>
                   <button type="button" onClick={() => canAdd(l) && setQty(l, l.qty + 1)} aria-disabled={!canAdd(l)} aria-label={`Uno más de ${name} en tu pedido`}>+</button>
                 </div>
-                <span>{money(unitPrice(l.product, l.variant) * l.qty)}</span>
+                <span>{money(unitPrice(l.product, l.variant, l.size) * l.qty)}</span>
                 <button type="button" className="icon" onClick={() => setCart(cart.filter((x) => x !== l))} aria-label={`Quitar ${name}`}>✕</button>
               </div>
             )
@@ -321,7 +330,7 @@ function Done({ order, settings, onBack }) {
   useEffect(() => { scrollTo(0, 0); title.current.focus() }, [])
   const date = longDate(order.delivery_date)
   const alias = settings?.transfer_alias
-  const lines = order.items.map((l) => `• ${l.qty} x ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join('\n')
+  const lines = order.items.map((l) => `• ${l.qty} x ${lineName(l)}`).join('\n')
   const msg = `Hola! Soy ${order.customer_name}, hice un pedido para el ${date}:\n${lines}\nTotal: ${money(order.total)}${alias ? '\nTe mando el comprobante de la transferencia.' : ''}`
   const wa = whatsapp(settings, msg)
   const copy = () => navigator.clipboard.writeText(alias).then(() => setCopied(true), () => {})

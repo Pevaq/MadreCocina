@@ -1,12 +1,26 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { unitPrice, addDays, minDeliveryDate, orderDay, nowIn, checkContact, isDate, maxDeliveryDate, blockedDates, isBlocked, firstDate, blockedError } from './order.js'
+import { unitPrice, lineName, addDays, minDeliveryDate, orderDay, nowIn, checkContact, isDate, maxDeliveryDate, blockedDates, isBlocked, firstDate, blockedError } from './order.js'
 
 test('variant price falls back to product price', () => {
   assert.equal(unitPrice({ price: 100 }, { price: null }), 100)
   assert.equal(unitPrice({ price: 100 }, undefined), 100)
   assert.equal(unitPrice({ price: 100 }, { price: 0 }), 0)
   assert.equal(unitPrice({ price: 100 }, { price: 150 }), 150)
+})
+
+test('a size sets the price and the variant adds its extra', () => {
+  assert.equal(unitPrice({ price: 100 }, null, { price: 300 }), 300)
+  assert.equal(unitPrice({ price: 100 }, { price: null }, { price: 300 }), 300)
+  assert.equal(unitPrice({ price: 100 }, { price: 50 }, { price: 300 }), 350)
+  assert.equal(unitPrice({ price: 100 }, { price: '50' }, { price: '300' }), 350)
+})
+
+test('line names show size and variant', () => {
+  assert.equal(lineName({ name: 'Focaccia', size: 'L', variant: 'Romero' }), 'Focaccia (L · Romero)')
+  assert.equal(lineName({ name: 'Focaccia', size: 'L', variant: null }), 'Focaccia (L)')
+  assert.equal(lineName({ name: 'Cheesecake', variant: 'Chica' }), 'Cheesecake (Chica)')
+  assert.equal(lineName({ name: 'Cookies', variant: null }), 'Cookies')
 })
 
 test('addDays crosses month and year', () => {
